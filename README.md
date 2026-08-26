@@ -16,7 +16,7 @@
 
 ## Índice
 
-1. [Documentación](#documentación)
+ [Documentación](#documentación)
    - [Información inicial](#información-inicial)
      - [Problema a Resolver](#problema-a-resolver)
      - [Solución Propuesta](#solución-propuesta)
