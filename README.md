@@ -38,7 +38,7 @@
 
 #### Problema a Resolver
 
-La fragmentación operativa en pequeños comercios y PyMEs genera cuellos de botella significativos en su gestión diaria. La carencia de un sistema unificado para el control de stock de productos, el registro concurrente de ventas y la emisión de comprobantes fiscales resulta en inconsistencias de stock, pérdida de tiempo productivo en tareas manuales y una visibilidad financiera deficiente, lo que obstaculiza la toma de decisiones estratégicas.
+La fragmentación operativa en pequeños comercios y PyMEs genera cuellos de botella significativos en su gestión diaria. La carencia de un sistema unificado para el control de stock de productos, el registro concurrente de ventas y la emisión de comprobantes de pago resulta en inconsistencias de stock, pérdida de tiempo productivo en tareas manuales y una visibilidad financiera deficiente, lo que obstaculiza la toma de decisiones estratégicas.
 
 #### Solución Propuesta
 
