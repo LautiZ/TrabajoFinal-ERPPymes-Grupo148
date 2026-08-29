@@ -12,7 +12,7 @@
 
 - Sebastian Bruselario
 
-26 de Agosto de 2026
+29 de Agosto de 2026
 
 ## Índice
 
@@ -38,7 +38,11 @@
 
 #### Problema a Resolver
 
-La fragmentación operativa en pequeños comercios y PyMEs genera cuellos de botella significativos en su gestión diaria. La carencia de un sistema unificado para el control de stock de productos, el registro concurrente de ventas y la emisión de comprobantes de pago resulta en inconsistencias de stock, pérdida de tiempo productivo en tareas manuales y una visibilidad financiera deficiente, lo que obstaculiza la toma de decisiones estratégicas.
+•⁠  ⁠La fragmentación operativa en pequeños comercios y PyMEs genera cuellos de botella significativos en su gestión diaria. 
+•⁠  ⁠⁠La carencia de un sistema unificado para:
+    •⁠  ⁠el control de stock de productos, 
+    •  ⁠el registro concurrente de ventas y la emisión de comprobantes de pago resulta en inconsistencias de stock, 
+    •⁠  ⁠pérdida de tiempo productivo en tareas manuales y una visibilidad financiera deficiente, lo que obstaculiza la toma de decisiones estratégicas.
 
 #### Solución Propuesta
 
@@ -104,7 +108,7 @@ Para la pasarela de pagos vamos a utilizar el SDK de Mercado Pago. Creemos que n
 
 ### Arquitectura del Frontend
 
-Para el desarrollo de la interfaz de usuario (frontend), optamos por Angular dada su solidez, arquitectura estructurada y las facilidades que brinda para la construcción de aplicaciones. Asimismo, la organización modular de Angular comparte una filosofía de trabajo muy similar a la de NestJS, lo que consideramos clave para acelerar y optimizar el proceso de desarrollo.
+Para el desarrollo de la interfaz de usuario (frontend), optamos por Angular (v22) dada su solidez, arquitectura estructurada y las facilidades que brinda para la construcción de aplicaciones. Asimismo, la organización modular de Angular comparte una filosofía de trabajo muy similar a la de NestJS, lo que consideramos clave para acelerar y optimizar el proceso de desarrollo.
 
 > Link a la documentación oficial de Angular: <https://angular.dev/overview>
 
