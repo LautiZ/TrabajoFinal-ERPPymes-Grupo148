@@ -20,7 +20,6 @@
    - [Información inicial](#información-inicial)
      - [Problema a Resolver](#problema-a-resolver)
      - [Solución Propuesta](#solución-propuesta)
-     - [ERPs de Referencia](#erps-de-referencia)
    - [Arquitectura del Backend](#arquitectura-del-backend)
      - [Microservicios Propuestos](#microservicios-propuestos)
      - [Estructura Interna y Capas](#estructura-interna-y-capas)
@@ -48,12 +47,6 @@
 #### Solución Propuesta
 
 Desarrollo e implementación de una plataforma web integral (ERP) orientada a la gestión empresarial. Este sistema centralizará la administración del stock de productos, la operatoria de punto de venta (POS) y la analítica financiera, proporcionando una herramienta robusta, escalable y con procesamiento en tiempo real para optimizar los flujos de trabajo del negocio.
-
-#### ERPs de Referencia
-
-- Tango Software
-- Contabilium
-- Xubio
 
 ### Arquitectura del Backend
 
