@@ -6,4 +6,4 @@ async function bootstrap() {
   const app = await NestFactory.create(AuthModule);
   await app.listen(envs.PORT);
 }
-bootstrap();
+void bootstrap();
