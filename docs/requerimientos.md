@@ -1,6 +1,6 @@
 # Requerimientos del Sistema — ERP para PyMEs
 
-> Documento de requerimientos del Trabajo Final (Grupo 148). Complementa el `README.md` (alcance y arquitectura) con el detalle funcional y no funcional.
+> Documento de requerimientos del Trabajo Final (Grupo 148). Detalla los requerimientos funcionales y no funcionales; la arquitectura está descrita en [arquitectura](./arquitectura.md) y el listado de módulos en [módulos](./modulos.md).
 
 ## 1. Introducción
 
@@ -98,18 +98,9 @@ Plataforma web (ERP) que centraliza inventario, punto de venta (POS) y pagos, co
 | RNF-06 | Las contraseñas de usuario deben almacenarse hasheadas, nunca en texto plano.                                                                                  |
 | RNF-07 | El sistema debe ser escalable horizontalmente por microservicio, dado que cada uno corre de forma independiente.                                               |
 
-## 4. Fuera de alcance
-
-Explícitamente excluido del Trabajo Final tras la corrección de la entrega 1:
-
-- Invoice Microservice (facturación electrónica).
-- Integración con AFIP SDK / ARCA.
-- Módulo de Facturación.
-- Login con Google OAuth (se usa exclusivamente usuario/contraseña + JWT).
-- Entidad "cliente": el sistema es un ERP con POS de mostrador, no un ecommerce.
-
 ## 🔗 Relacionado
 
 - [Reglas de negocio](./reglas-de-negocio.md)
 - [Modelo relacional](./modelo-relacional.md)
-- `README.md` (raíz del repo) — arquitectura y alcance general.
+- [Arquitectura](./arquitectura.md)
+- [Listado de módulos](./modulos.md)
