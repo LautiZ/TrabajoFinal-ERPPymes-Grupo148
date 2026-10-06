@@ -42,6 +42,9 @@ Cuando el cambio de estado de una venta lo dispara un proceso automático (por e
 **RN-11 — Cancelar una venta revierte el stock, sin editar el movimiento original.**
 Al cancelar una venta que ya generó un movimiento de stock (`Outcome`) — es decir, una venta en `Ordered` o `Paid`, ver RN-09.1 — el sistema debe generar el movimiento inverso correspondiente en vez de modificar o borrar el movimiento original. Se preserva la trazabilidad completa de qué pasó y cuándo.
 
+**RN-11.1 — Cancelar una venta ya pagada reembolsa el pago.**
+Si la venta se cancela estando en `Paid`, además de revertir el stock (RN-11), el sistema debe solicitar a Mercado Pago el reembolso del pago aprobado. El pago no se borra ni se edita: pasa a `Refunded` cuando Mercado Pago lo confirma (RN-15). Las devoluciones posteriores al despacho no están contempladas, porque una venta despachada queda firme (RN-09.1).
+
 **RN-12 — No existe entidad "cliente".**
 El sistema es un ERP con punto de venta de mostrador, no un ecommerce. El usuario asociado a una venta (`sales.user_id`) es siempre el empleado que la cargó, nunca un comprador externo.
 
@@ -54,7 +57,7 @@ El sistema es un ERP con punto de venta de mostrador, no un ecommerce. El usuari
 Un pago con `amount <= 0` es inválido.
 
 **RN-15 — El estado de un pago lo confirma Mercado Pago, no el usuario.**
-El pasaje de `Pending` a `Paid` o `Rejected` depende de la notificación (webhook) de Mercado Pago, no de una acción manual dentro del sistema.
+El pasaje de `Pending` a `Paid` o `Rejected`, y de `Paid` a `Refunded`, depende de la notificación (webhook) de Mercado Pago, no de una acción manual dentro del sistema. En el caso del reembolso, el sistema lo inicia al cancelar la venta (RN-11.1), pero el cambio de estado lo confirma Mercado Pago.
 
 ## 4. Usuarios y permisos
 
@@ -88,6 +91,17 @@ Desactivar un usuario (`active = false`) le impide iniciar sesión, pero sus ven
 
 **RN-18 — No hay claves foráneas entre bases de datos distintas.**
 Cada microservicio (Auth, ERP, Payments) tiene su propia base de datos. Las referencias cruzadas (`sale_history.user_id` → Auth, `payments.sale_id` → ERP) son lógicas, no constraints de base de datos. La consistencia se garantiza validando en el servicio que el ID referenciado existe antes de aceptar la operación, no por integridad referencial de PostgreSQL.
+
+## 6. Identificación de entidades
+
+**RN-19 — No puede haber dos categorías vigentes con el mismo nombre.**
+El nombre identifica a una categoría para el negocio. La unicidad aplica solo entre categorías no eliminadas: una categoría dada de baja no impide crear otra con el mismo nombre. _(`uq_categories_name_active`)_
+
+**RN-20 — El SKU identifica a un producto y no se reutiliza.**
+Dos productos no pueden compartir SKU, ni siquiera si uno de ellos fue dado de baja: las ventas históricas lo siguen referenciando, y reutilizarlo mezclaría dos productos distintos en los reportes. _(`uq_products_sku`)_
+
+**RN-21 — Cada venta tiene un número propio, asignado por el sistema.**
+El número de venta es el que se imprime en el ticket y con el que el empleado y el cliente identifican la venta. Lo asigna la base de datos de forma correlativa y nunca se acepta desde el cliente. _(`uq_sales_sale_number`)_
 
 ## 🔗 Relacionado
 

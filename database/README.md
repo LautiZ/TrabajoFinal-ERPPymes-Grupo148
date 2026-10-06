@@ -23,6 +23,7 @@ Los datos de prueba usan UUID fijos para que las referencias lógicas (`sales.us
 ## Consideraciones
 
 - Todas las fechas son `timestamptz` (se almacenan en UTC).
-- Las claves primarias se generan por defecto con `gen_random_uuid()`.
+- Las claves primarias se generan por defecto con `gen_random_uuid()`. La clave natural de cada entidad (email, nombre de categoría, SKU, número de venta, etc.) se conserva como restricción `UNIQUE`; ver [modelo relacional](../docs/modelo-relacional.md#del-modelo-conceptual-al-modelo-físico).
+- `sales.sale_number` es una columna `GENERATED ALWAYS AS IDENTITY`: los inserts no la incluyen y PostgreSQL asigna el número.
 - El valor por defecto de `updated_at` solo aplica al insertar; la aplicación lo actualiza en cada modificación (`@updatedAt` de Prisma).
 - Las reglas de negocio que se validan mediante restricciones están descritas en [`docs/reglas-de-negocio.md`](../docs/reglas-de-negocio.md).

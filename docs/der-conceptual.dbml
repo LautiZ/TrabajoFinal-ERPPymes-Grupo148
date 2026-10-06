@@ -1,0 +1,121 @@
+// =============================================================
+// Conceptual ER model (DER) - ERP para PyMEs
+// Business domain only: each entity is identified by its natural key.
+// No surrogate ids, microservices, indexes or audit fields.
+// Physical model: see docs/modelo-relacional.md (section 5).
+// =============================================================
+
+Enum rol {
+  Owner
+  Admin
+  Employee
+}
+
+Enum unidad {
+  Unit
+  Kg
+  Meter
+  Liter
+}
+
+Enum estado_venta {
+  Ordered
+  Paid
+  Dispatched
+  Cancelled
+}
+
+Enum estado_pago {
+  Pending
+  Paid
+  Rejected
+  Refunded
+}
+
+Enum tipo_movimiento {
+  Income
+  Outcome
+  Adjustment
+}
+
+Table usuario {
+  email varchar [pk]
+  nombre varchar [not null]
+  apellido varchar
+  rol rol [not null]
+  activo bool [not null]
+}
+
+Table categoria {
+  nombre varchar [pk]
+  descripcion varchar
+}
+
+Table producto {
+  sku varchar [pk]
+  nombre varchar [not null]
+  precio decimal [not null]
+  unidad unidad [not null]
+  activo bool [not null, note: 'false = pausado']
+  stock decimal [not null, note: 'Derivado de los movimientos de stock']
+  categoria varchar [not null, ref: > categoria.nombre]
+}
+
+Table venta {
+  nro_venta integer [pk, note: 'Número impreso en el ticket']
+  fecha timestamp [not null]
+  total decimal [not null, note: 'Derivado de los detalles']
+  estado_actual estado_venta [not null, note: 'Derivado del último cambio de estado']
+  registrada_por varchar [not null, ref: > usuario.email]
+}
+
+// M:N relationship "incluye" between venta and producto, with attributes
+Table detalle_venta {
+  nro_venta integer [ref: > venta.nro_venta]
+  sku varchar [ref: > producto.sku]
+  cantidad decimal [not null]
+  precio_unitario decimal [not null, note: 'Precio congelado al momento de la venta']
+
+  indexes {
+    (nro_venta, sku) [pk]
+  }
+}
+
+// Weak entity of venta: a sale goes through each state only once
+Table cambio_estado {
+  nro_venta integer [ref: > venta.nro_venta]
+  estado estado_venta
+  fecha_hora timestamp [not null]
+  realizado_por varchar [ref: > usuario.email, note: 'Nulo si lo genera el sistema']
+
+  indexes {
+    (nro_venta, estado) [pk]
+  }
+}
+
+// Weak entity of venta: a sale may have several payment attempts
+Table pago {
+  nro_venta integer [ref: > venta.nro_venta]
+  fecha_hora timestamp
+  monto decimal [not null]
+  estado estado_pago [not null]
+  mp_payment_id varchar [unique, note: 'Nulo mientras está pendiente']
+
+  indexes {
+    (nro_venta, fecha_hora) [pk]
+  }
+}
+
+// Weak entity of producto
+Table movimiento_stock {
+  sku varchar [ref: > producto.sku]
+  fecha_hora timestamp
+  tipo tipo_movimiento [not null]
+  cantidad decimal [not null]
+  registrado_por varchar [not null, ref: > usuario.email]
+  nro_venta integer [ref: > venta.nro_venta, note: 'Solo si lo generó una venta']
+
+  indexes {
+    (sku, fecha_hora) [pk]
+  }
+}

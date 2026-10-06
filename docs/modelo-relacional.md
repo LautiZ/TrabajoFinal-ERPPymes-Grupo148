@@ -4,11 +4,138 @@
 >
 > Diagrama interactivo: [Tesis en dbdiagram.io](https://dbdiagram.io/d/Tesis-6ab14a9c9ba2420e18d18221)
 
-## Diagrama entidad-relación
+El modelo de datos se documenta en dos niveles:
 
-![Diagrama entidad-relación del ERP para PyMEs](./der.png)
+1. **Modelo conceptual (DER):** el dominio del negocio. Cada entidad se identifica por su clave natural, es decir, por atributos propios del negocio. No incluye identificadores artificiales, microservicios, índices ni campos de auditoría.
+2. **Modelo físico:** las tablas que se implementan en PostgreSQL, con una base por microservicio (secciones 1 a 5).
 
-Generado a partir del [esquema DBML](#5-esquema-completo-dbml). Las tablas aparecen agrupadas por microservicio y no hay relaciones entre servicios, porque cada uno tiene su propia base de datos. Referencias: **negrita** = clave primaria; `(!)` = `NOT NULL`; `1` / `*` = cardinalidad de la relación.
+## Diagrama entidad-relación (modelo conceptual)
+
+Notación pata de gallo. Las entidades débiles y la relación M:N con atributos se detallan en las tablas siguientes. El mismo modelo está en [`der-conceptual.dbml`](./der-conceptual.dbml), para visualizarlo en dbdiagram.io.
+
+![Diagrama entidad-relación conceptual del ERP para PyMEs](./der.png)
+
+<details>
+<summary>Fuente del diagrama (Mermaid)</summary>
+
+```mermaid
+erDiagram
+    USUARIO ||--o{ VENTA : registra
+    USUARIO ||--o{ MOVIMIENTO_STOCK : registra
+    USUARIO |o--o{ CAMBIO_ESTADO : realiza
+    CATEGORIA ||--o{ PRODUCTO : agrupa
+    VENTA ||--|{ DETALLE_VENTA : incluye
+    PRODUCTO ||--o{ DETALLE_VENTA : "se vende en"
+    VENTA ||--|{ CAMBIO_ESTADO : "pasa por"
+    VENTA ||--o{ PAGO : "se paga con"
+    PRODUCTO ||--o{ MOVIMIENTO_STOCK : tiene
+    VENTA |o--o{ MOVIMIENTO_STOCK : genera
+
+    USUARIO {
+        string email PK
+        string nombre
+        string apellido
+        string rol "Owner | Admin | Employee"
+        bool activo
+    }
+    CATEGORIA {
+        string nombre PK
+        string descripcion
+    }
+    PRODUCTO {
+        string sku PK
+        string nombre
+        decimal precio
+        string unidad "Unit | Kg | Meter | Liter"
+        bool activo "false = pausado"
+        decimal stock "derivado de los movimientos"
+    }
+    VENTA {
+        int nro_venta PK
+        datetime fecha
+        decimal total "derivado de los detalles"
+        string estado_actual "derivado del último cambio"
+    }
+    DETALLE_VENTA {
+        int nro_venta PK, FK
+        string sku PK, FK
+        decimal cantidad
+        decimal precio_unitario
+    }
+    CAMBIO_ESTADO {
+        int nro_venta PK, FK
+        string estado PK
+        datetime fecha_hora
+    }
+    PAGO {
+        int nro_venta PK, FK
+        datetime fecha_hora PK
+        decimal monto
+        string estado
+        string mp_payment_id UK "nulo mientras está pendiente"
+    }
+    MOVIMIENTO_STOCK {
+        string sku PK, FK
+        datetime fecha_hora PK
+        string tipo "Income | Outcome | Adjustment"
+        decimal cantidad
+    }
+```
+
+</details>
+
+### Entidades
+
+| Entidad | Clave natural | Tipo | Justificación |
+|---|---|---|---|
+| Usuario | `email` | Fuerte | Es el identificador con el que el usuario inicia sesión y es único en el sistema |
+| Categoría | `nombre` | Fuerte | Es como el negocio identifica una categoría (RN-19) |
+| Producto | `sku` | Fuerte | Código del producto; no se reutiliza nunca, ni siquiera si el producto se da de baja (RN-20) |
+| Venta | `nro_venta` | Fuerte | Número impreso en el ticket, con el que el empleado y el cliente identifican la venta (RN-21) |
+| Cambio de estado | `nro_venta` + `estado` | Débil de Venta | Los estados solo avanzan: una venta pasa una única vez por cada estado (RN-09) |
+| Pago | `nro_venta` + `fecha_hora` | Débil de Venta | Una venta puede tener más de un intento de pago (por ejemplo, uno rechazado y otro aprobado) |
+| Movimiento de stock | `sku` + `fecha_hora` | Débil de Producto | Es un evento del producto; no tiene identidad propia en el negocio |
+
+### Relaciones
+
+| Relación | Entidades | Cardinalidad | Atributos |
+|---|---|---|---|
+| registra | Usuario — Venta | 1 : N | — |
+| registra | Usuario — Movimiento de stock | 1 : N | — |
+| realiza | Usuario — Cambio de estado | 0..1 : N (sin usuario si lo genera el sistema, RN-10) | — |
+| agrupa | Categoría — Producto | 1 : N | — |
+| **incluye** | Venta — Producto | **M : N** (toda venta incluye al menos un producto) | `cantidad`, `precio_unitario` |
+| pasa por | Venta — Cambio de estado | 1 : N (identificadora) | — |
+| se paga con | Venta — Pago | 1 : N (identificadora) | — |
+| tiene | Producto — Movimiento de stock | 1 : N (identificadora) | — |
+| genera | Venta — Movimiento de stock | 0..1 : N (solo los movimientos originados por una venta) | — |
+
+`DETALLE_VENTA` representa la relación M:N **incluye** con sus atributos, no una entidad independiente: la notación pata de gallo no permite atributos en una relación.
+
+## Del modelo conceptual al modelo físico
+
+Cada entidad se implementa como una tabla con un `uuid` como clave primaria, y su clave natural se conserva como restricción `UNIQUE`. De esta forma la regla de negocio sigue garantizada por la base de datos.
+
+| Entidad / relación | Tabla | Clave natural en la base de datos |
+|---|---|---|
+| Usuario | `users` | `uq_users_email` |
+| Categoría | `categories` | `uq_categories_name_active`: índice único parcial, solo entre categorías no eliminadas |
+| Producto | `products` | `uq_products_sku`: global, también entre productos eliminados |
+| Venta | `sales` | `uq_sales_sale_number` |
+| incluye | `sale_items` | `uq_sale_items_sale_id_product_id` |
+| Cambio de estado | `sale_history` | `uq_sale_history_sale_id_sale_state` |
+| Pago | `payments` | `uq_payments_sale_id_created_at` |
+| Movimiento de stock | `stock_movements` | No se impone en la base de datos (ver decisiones de diseño) |
+
+**Por qué la clave primaria física es un `uuid` y no la clave natural:**
+
+- **Referencias entre microservicios.** `sales.user_id` apunta a Auth MS y `payments.sale_id` a ERP MS, en bases distintas y sin FK (RN-18). Si la referencia fuera el `email`, un cambio de correo dejaría referencias inválidas en otra base, sin un `ON UPDATE CASCADE` que las corrija. El `uuid` no cambia nunca.
+- **Claves naturales modificables.** El `email` de un usuario y el nombre de una categoría se pueden editar. El `uuid` absorbe ese cambio sin afectar a las tablas que lo referencian.
+- **Claves compuestas.** Evita que las entidades débiles propaguen claves de dos o tres columnas en cada FK.
+
+## Diagrama físico
+
+Las tablas de cada microservicio se detallan en las secciones 1 a 3, y el [esquema DBML](#5-esquema-completo-dbml) completo puede visualizarse en [dbdiagram.io](https://dbdiagram.io/d/Tesis-6ab14a9c9ba2420e18d18221). `users` y `payments` no muestran relaciones porque están en otras bases de datos; en el dominio sí están relacionadas, como muestra el modelo conceptual.
 
 ## 1. Auth MS
 
@@ -40,7 +167,7 @@ erDiagram
 
     categories {
         uuid id PK
-        varchar name
+        varchar name UK "único entre no eliminadas"
         varchar description
         bool deleted
         timestamptz created_at
@@ -73,6 +200,7 @@ erDiagram
 
     sales {
         uuid id PK
+        integer sale_number UK "número de ticket"
         decimal total "calculado por el backend"
         uuid user_id "lógico -> Auth MS users.id"
         enum current_state "Ordered | Paid | Dispatched | Cancelled"
@@ -103,7 +231,7 @@ erDiagram
 erDiagram
     payments {
         uuid id PK
-        enum payment_state "Pending | Paid | Rejected"
+        enum payment_state "Pending | Paid | Rejected | Refunded"
         varchar mp_payment_id UK
         decimal amount
         uuid sale_id "lógico -> ERP MS sales.id"
@@ -127,6 +255,11 @@ erDiagram
 - **`stock_movements.sale_id` nullable:** permite rastrear qué venta generó cada `Outcome` y revertirlo si se cancela (RN-11). Relación opcional (`ref: >?` en DBML).
 - **Convención de signo en `Adjustment`:** ver RN-03.
 - **`current_state` no valida transiciones a nivel de base de datos:** el enum `sale_states` permite cualquier valor, pero la máquina de estados (`Ordered` → `Paid` → `Dispatched`, cancelable solo antes de `Dispatched`) se valida en el servicio, no con un `CHECK` — ver RN-09/RN-09.1.
+- **`Refunded` solo existe como estado de pago:** cuando se cancela una venta en `Paid`, la venta pasa a `Cancelled` y su pago a `Refunded` (RN-11.1). La venta no tiene un estado `Refunded` porque una venta despachada queda firme (RN-09.1); las devoluciones posteriores al despacho quedan fuera del alcance.
+- **Claves naturales como `UNIQUE`:** cada tabla conserva la clave natural de su entidad del modelo conceptual (ver [Del modelo conceptual al modelo físico](#del-modelo-conceptual-al-modelo-físico)).
+- **`sales.sale_number`:** es el número de venta que se imprime en el ticket, no un identificador técnico. Lo genera PostgreSQL (`GENERATED ALWAYS AS IDENTITY`) y nunca se acepta desde el cliente (RN-21).
+- **Unicidad de `categories.name` solo entre no eliminadas:** una categoría dada de baja no debe impedir crear otra con el mismo nombre. Se resuelve con un índice único parcial (`WHERE deleted = false`), igual que el de `Owner`. En cambio, `products.sku` es único de forma global porque un SKU no se reutiliza (RN-20).
+- **`stock_movements` sin clave natural en la base de datos:** un movimiento es un evento; solo los ingresos por compra tienen un comprobante (remito) y las ventas y los ajustes no. En el modelo conceptual se identifica como entidad débil de Producto, pero en el físico no se impone esa unicidad: `created_at` toma `now()`, que es la hora de inicio de la transacción, así que dos movimientos del mismo producto en una misma transacción tendrían la misma marca de tiempo.
 - **Unicidad del rol `Owner`:** el sistema admite un solo usuario `Owner` (RN-16.1). No puede resolverse con un `unique` sobre `role` — impediría tener más de un `Employee` —, sino con un índice único parcial (`WHERE role = 'Owner'`), que se agrega editando el SQL de la migración.
 
 ## 5. Esquema completo (DBML)
@@ -169,6 +302,9 @@ Enum product_units {
 
 Table categories {
   id uuid [pk, not null]
+  // Natural key: unique among non-deleted categories (RN-19). Requires a
+  // PARTIAL unique index, not expressible in DBML. Added in the migration SQL:
+  // CREATE UNIQUE INDEX uq_categories_name_active ON categories (name) WHERE deleted = false;
   name varchar [not null]
   description varchar
   deleted bool [not null, default: false] // logical delete
@@ -237,6 +373,9 @@ Enum sale_states {
 
 Table sales {
   id uuid [pk, not null]
+  // Natural key: number printed on the ticket (RN-21).
+  // Generated by the database (GENERATED ALWAYS AS IDENTITY), never sent by the client.
+  sale_number integer [not null, unique]
   total decimal(12,2) [not null]
   // Logical reference to Auth MS users.id (cross-service, no FK)
   user_id uuid [not null]
@@ -284,7 +423,8 @@ Table sale_history {
   created_at timestamptz [not null, default: `now()`]
 
   indexes {
-    (sale_id, created_at) // state timeline of a sale
+    (sale_id, sale_state) [unique] // natural key: a sale goes through each state only once (RN-09)
+    (sale_id, created_at)          // state timeline of a sale
   }
 }
 
@@ -293,6 +433,7 @@ Enum payment_states {
   Pending
   Paid
   Rejected
+  Refunded // the sale was cancelled after being paid (RN-11.1)
 }
 
 Table payments {
@@ -306,7 +447,7 @@ Table payments {
   created_at timestamptz [not null, default: `now()`]
 
   indexes {
-    sale_id // payments of a sale
+    (sale_id, created_at) [unique] // natural key; also serves lookups by sale_id
   }
 
   checks {
