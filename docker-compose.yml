@@ -1,0 +1,18 @@
+services:
+  postgres: # nombre del servicio = hostname dentro de la red de Docker
+    image: postgres:18.6 # version pineada, nunca "latest"
+    container_name: erp-pymes-postgres
+    restart: unless-stopped # si se cae, se vuelve a levantar solo
+    env_file: .env # carga POSTGRES_USER / PASSWORD / DB
+    ports:
+      - "127.0.0.1:5432:5432" # host:contenedor, solo accesible desde tu maquina
+    volumes:
+      - pgdata:/var/lib/postgresql # Postgres 18+: este path, NO .../data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata: # volumen con nombre, lo administra Docker
