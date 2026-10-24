@@ -22,6 +22,7 @@
      - [Solución Propuesta](#solución-propuesta)
    - [Arquitectura y tecnologías](#arquitectura-y-tecnologías)
    - [Estructura del repositorio](#estructura-del-repositorio)
+   - [Levantar el entorno](#levantar-el-entorno)
 
 ---
 
@@ -75,3 +76,18 @@ flowchart TD
 | [`database/`](database/) | Scripts DDL y datos de prueba (DML) por microservicio; ver su [README](database/README.md) |
 | `Backend/` | Monorepo NestJS: `apps/gateway`, `apps/auth`, `apps/erp`, `apps/payments` (estructura inicial, sin código) |
 | `Frontend/` | Aplicación Angular: `src/app/core`, `src/app/inventory`, `src/app/sales-payments` (estructura inicial, sin código) |
+
+### Levantar el entorno
+
+Requiere Docker. Las credenciales no se versionan: cada `.env.example` del repositorio indica qué variables hacen falta.
+
+1. Copiar cada `.env.example` a un `.env` en la misma carpeta y completar los valores:
+   - `.env` (raíz): credenciales de PostgreSQL que usa `docker-compose.yml`.
+   - `Backend/apps/<servicio>/.env`: configuración de cada servicio para correrlo localmente. Dentro de Docker, `docker-compose.yml` reemplaza los hosts y arma `DATABASE_URL` a partir del `.env` de la raíz.
+2. Desde la raíz del repositorio:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+El API Gateway queda disponible en `http://localhost:3000`. Auth, ERP y Payments solo son accesibles dentro de la red interna de Docker.

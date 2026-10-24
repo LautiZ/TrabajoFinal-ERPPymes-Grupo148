@@ -26,7 +26,8 @@ services:
     restart: unless-stopped
     env_file: ./Backend/apps/auth/.env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=auth
+      # ":?" corta el arranque con ese mensaje si la variable falta o esta vacia en el .env de la raiz
+      DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}?schema=auth
     networks:
       - backend
     depends_on:
@@ -43,7 +44,7 @@ services:
     restart: unless-stopped
     env_file: ./Backend/apps/erp/.env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=erp
+      DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}?schema=erp
     networks:
       - backend
     depends_on:
@@ -60,7 +61,7 @@ services:
     restart: unless-stopped
     env_file: ./Backend/apps/payments/.env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=payments
+      DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}?schema=payments
     networks:
       - backend
     depends_on:
