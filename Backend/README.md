@@ -1,98 +1,102 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Backend — ERP para PyMEs
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Monorepo NestJS con el backend del Trabajo Final. La documentación general del proyecto (problema, arquitectura, requerimientos y modelo de datos) está en el [README de la raíz](../README.md).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Estructura
 
-## Description
+Monorepo nativo de Nest CLI, gestionado con pnpm:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Ruta             | Contenido                                                                                       | Puerto |
+| ---------------- | ----------------------------------------------------------------------------------------------- | ------ |
+| `apps/gateway`   | API Gateway: único servicio expuesto al exterior                                                | `3000` |
+| `apps/auth`      | Microservicio de autenticación y usuarios                                                       | `3001` |
+| `apps/erp`       | Microservicio de productos, stock y ventas                                                      | `3002` |
+| `apps/payments`  | Microservicio de pagos (Mercado Pago)                                                           | `3003` |
+| `libs/contracts` | Código compartido entre servicios: carga y validación de variables de entorno y DTOs comunes    | —      |
 
-## Project setup
+## Requisitos
+
+- Node.js 24
+- pnpm 10
+- Docker (para PostgreSQL y para levantar el sistema completo)
+
+## Instalación
 
 ```bash
-$ pnpm install
+pnpm install
+pnpm prisma:generate
 ```
 
-## Compile and run the project
+`prisma:generate` es necesario después de clonar el repositorio: los clientes de Prisma no se versionan (ver [Base de datos](#base-de-datos-prisma)).
+
+## Variables de entorno
+
+Cada servicio tiene su propio `.env` en `apps/<servicio>/.env`, que no se versiona. Para crearlo, copiar el `apps/<servicio>/.env.example` correspondiente y completar los valores.
+
+- Cada servicio carga solo su propio archivo (`loadAppEnv()` de `libs/contracts`), así ningún proceso ve las credenciales de los demás.
+- Las variables se validan con Joi al arrancar (`validateEnvs()` de `libs/contracts`). Si falta una variable requerida, el servicio no arranca y muestra `Config validation error`.
+- Al correr con Docker, `docker-compose.yml` reemplaza los hosts (`localhost` por el nombre de cada servicio) y arma `DATABASE_URL` a partir del `.env` de la raíz del repositorio.
+
+## Ejecución
+
+Todos los comandos se ejecutan desde `Backend/`.
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+# modo desarrollo con recarga (sin argumento levanta el Gateway)
+pnpm start:dev
+pnpm start:dev auth
+pnpm start:dev erp
+pnpm start:dev payments
 ```
 
-## Run tests
+Para levantar el sistema completo (PostgreSQL y los cuatro servicios en una red privada de Docker), seguir los pasos de [Levantar el entorno](../README.md#levantar-el-entorno) del README de la raíz.
+
+## Base de datos (Prisma)
+
+Los tres servicios comparten una única base de datos PostgreSQL, pero cada uno es dueño de su propio schema de PostgreSQL y nunca accede a los de los demás:
+
+| Servicio   | Schema de PostgreSQL | Archivos de Prisma                                        | Cliente generado                     |
+| ---------- | -------------------- | --------------------------------------------------------- | ------------------------------------ |
+| `auth`     | `auth`               | `apps/auth/prisma.config.ts`, `apps/auth/prisma/`         | `apps/auth/src/generated/prisma`     |
+| `erp`      | `erp`                | `apps/erp/prisma.config.ts`, `apps/erp/prisma/`           | `apps/erp/src/generated/prisma`      |
+| `payments` | `payments`           | `apps/payments/prisma.config.ts`, `apps/payments/prisma/` | `apps/payments/src/generated/prisma` |
+
+Convenciones:
+
+- **`?schema=<servicio>` es obligatorio en la `DATABASE_URL` de cada servicio** (por ejemplo, `...?schema=auth`). Prisma guarda la tabla de historial de migraciones (`_prisma_migrations`) en ese schema, así que cada servicio mantiene su propio historial. Sin ese parámetro, todos los servicios compartirían `public._prisma_migrations` y `migrate dev` interpretaría las migraciones de los otros servicios como divergencias y ofrecería resetear la base.
+- **No hay claves foráneas entre servicios.** Las referencias a datos de otro servicio (`userId` en ERP, `saleId` en Payments) son columnas UUID simples; su integridad se valida mediante mensajes TCP, no en la base de datos.
+- **Cada modelo y enum declara `@@schema("<servicio>")`**, en coincidencia con la lista `schemas` de su datasource.
+- **Los clientes generados no se versionan** (están en el `.gitignore` y excluidos de ESLint). Ejecutar `pnpm prisma:generate` después de clonar el repositorio o de modificar un schema. Se generan con `importFileExtension = ""` para que el build con webpack de Nest pueda resolver sus imports internos.
+- Las restricciones que Prisma no puede expresar (por ejemplo, `CHECK`) se agregan a mano en el SQL de la migración, creada con `migrate dev --create-only`.
+
+Scripts (reemplazar `<servicio>` por `auth`, `erp` o `payments`):
 
 ```bash
-# unit tests
-$ pnpm run test
+# generar los tres clientes
+pnpm prisma:generate
 
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+# por servicio
+pnpm prisma:generate:<servicio>
+pnpm prisma:migrate:dev:<servicio>
+pnpm prisma:migrate:deploy:<servicio>
+pnpm prisma:studio:<servicio>
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Calidad de código
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+pnpm lint            # ESLint con reglas estrictas (aplica --fix)
+pnpm exec tsc --noEmit
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+TypeScript corre en modo `strict`, y reglas como `no-explicit-any` y `no-floating-promises` están como error. Los archivos `*.spec.ts` tienen un override para los tipos `any` intencionales de Jest.
 
-## Resources
+## Tests
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+pnpm test            # tests unitarios
+pnpm test:cov        # cobertura
+pnpm test:e2e        # tests e2e del Gateway
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Cada servicio tiene su configuración e2e en `apps/<servicio>/test/jest-e2e.json`.
