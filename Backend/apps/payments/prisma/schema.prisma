@@ -1,0 +1,35 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["payments"]
+}
+
+enum PaymentState {
+  Pending
+  Paid
+  Rejected
+
+  @@map("payment_states")
+  @@schema("payments")
+}
+
+model Payment {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paymentState PaymentState @default(Pending) @map("payment_state")
+  mpPaymentId  String?      @unique(map: "uq_payments_mp_payment_id") @map("mp_payment_id") @db.VarChar
+  amount       Decimal      @db.Decimal(12, 2)
+  // Cross-service reference to erp.sales.id: no FK on purpose
+  saleId       String       @map("sale_id") @db.Uuid
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([saleId], map: "idx_payments_sale_id")
+  @@map("payments")
+  @@schema("payments")
+}

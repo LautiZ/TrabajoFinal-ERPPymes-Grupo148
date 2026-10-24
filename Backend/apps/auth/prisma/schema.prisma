@@ -1,0 +1,38 @@
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+  previewFeatures     = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["auth"]
+}
+
+enum Role {
+  Owner
+  Admin
+  Employee
+
+  @@map("roles")
+  @@schema("auth")
+}
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique(map: "uq_users_email") @db.VarChar
+  passwordHash String   @map("password_hash") @db.VarChar
+  name         String   @db.VarChar
+  surname      String?  @db.VarChar
+  active       Boolean  @default(true)
+  role         Role     @default(Employee)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([role], map: "uq_users_single_owner", where: raw("role = 'Owner'"))
+  @@map("users")
+  @@schema("auth")
+}
