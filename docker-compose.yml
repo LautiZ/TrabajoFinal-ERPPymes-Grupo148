@@ -2,17 +2,95 @@ services:
   postgres: # nombre del servicio = hostname dentro de la red de Docker
     image: postgres:18.6 # version pineada, nunca "latest"
     container_name: erp-pymes-postgres
-    restart: unless-stopped # si se cae, se vuelve a levantar solo
+    restart: unless-stopped
     env_file: .env # carga POSTGRES_USER / PASSWORD / DB
     ports:
-      - "127.0.0.1:5432:5432" # host:contenedor, solo accesible desde tu maquina
+      - "127.0.0.1:5432:5432" # solo para desarrollo (Prisma desde Windows)
     volumes:
       - pgdata:/var/lib/postgresql # Postgres 18+: este path, NO .../data
+    networks:
+      - backend
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  auth:
+    build:
+      context: ./Backend
+      args:
+        APP: auth
+    image: erp-pymes-auth
+    container_name: erp-pymes-auth
+    restart: unless-stopped
+    env_file: ./Backend/apps/auth/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=auth
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  erp:
+    build:
+      context: ./Backend
+      args:
+        APP: erp
+    image: erp-pymes-erp
+    container_name: erp-pymes-erp
+    restart: unless-stopped
+    env_file: ./Backend/apps/erp/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=erp
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  payments:
+    build:
+      context: ./Backend
+      args:
+        APP: payments
+    image: erp-pymes-payments
+    container_name: erp-pymes-payments
+    restart: unless-stopped
+    env_file: ./Backend/apps/payments/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=payments
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: ./Backend
+      args:
+        APP: gateway
+    image: erp-pymes-gateway
+    container_name: erp-pymes-gateway
+    restart: unless-stopped
+    env_file: ./Backend/apps/gateway/.env
+    environment:
+      AUTH_MS_HOST: auth
+      ERP_MS_HOST: erp
+      PAYMENTS_MS_HOST: payments
+    ports:
+      - "3000:3000" # unico servicio expuesto al exterior
+    networks:
+      - backend
+    depends_on:
+      - auth
+      - erp
+      - payments
+
+networks:
+  backend: # red privada del sistema
+
 volumes:
-  pgdata: # volumen con nombre, lo administra Docker
+  pgdata:
