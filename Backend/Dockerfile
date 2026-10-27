@@ -12,6 +12,8 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 ARG APP
 COPY . .
+# generated Prisma clients are not versioned; the gateway has no schema
+RUN if [ -f "apps/${APP}/prisma.config.ts" ]; then pnpm prisma:generate:${APP}; fi
 RUN pnpm exec nest build ${APP}
 
 # ---------- prod-deps: runtime dependencies only ----------
