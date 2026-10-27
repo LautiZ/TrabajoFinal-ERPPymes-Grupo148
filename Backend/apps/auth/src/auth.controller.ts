@@ -5,8 +5,8 @@ import { AuthService } from './auth.service';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Get()
-  getHello(): string {
-    return this.authService.getHello();
+  @Get('users/count')
+  countUsers(): Promise<number> {
+    return this.authService.countUsers();
   }
 }

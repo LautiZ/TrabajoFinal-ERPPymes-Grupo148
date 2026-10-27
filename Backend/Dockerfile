@@ -5,19 +5,24 @@ WORKDIR /app
 
 # ---------- deps: all dependencies (dev included, needed to build) ----------
 FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml .pnpmfile.cjs ./
 RUN pnpm install --frozen-lockfile
 
 # ---------- build: compile only the requested app ----------
 FROM deps AS build
 ARG APP
 COPY . .
+# generated Prisma clients are not versioned; the gateway has no schema
+RUN if [ -f "apps/${APP}/prisma.config.ts" ]; then pnpm prisma:generate:${APP}; fi
 RUN pnpm exec nest build ${APP}
 
 # ---------- prod-deps: runtime dependencies only ----------
 FROM base AS prod-deps
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+# set per service in docker-compose.yml; services without a database skip Prisma
+ARG USES_PRISMA=true
+COPY package.json pnpm-lock.yaml .pnpmfile.cjs ./
+RUN if [ "$USES_PRISMA" != "true" ]; then pnpm remove @prisma/client @prisma/adapter-pg --lockfile-only; fi \
+ && pnpm install --frozen-lockfile --prod
 
 # ---------- runtime: final image ----------
 FROM node:24.11.1-alpine AS runtime

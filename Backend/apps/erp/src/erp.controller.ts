@@ -5,8 +5,8 @@ import { ErpService } from './erp.service';
 export class ErpController {
   constructor(private readonly erpService: ErpService) {}
 
-  @Get()
-  getHello(): string {
-    return this.erpService.getHello();
+  @Get('products/count')
+  countProducts(): Promise<number> {
+    return this.erpService.countProducts();
   }
 }

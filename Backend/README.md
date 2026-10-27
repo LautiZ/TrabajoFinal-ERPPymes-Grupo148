@@ -68,6 +68,9 @@ Convenciones:
 - **Cada modelo y enum declara `@@schema("<servicio>")`**, en coincidencia con la lista `schemas` de su datasource.
 - **Los clientes generados no se versionan** (están en el `.gitignore` y excluidos de ESLint). Ejecutar `pnpm prisma:generate` después de clonar el repositorio o de modificar un schema. Se generan con `importFileExtension = ""` para que el build con webpack de Nest pueda resolver sus imports internos.
 - Las restricciones que Prisma no puede expresar (por ejemplo, `CHECK`) se agregan a mano en el SQL de la migración, creada con `migrate dev --create-only`.
+- **Cada servicio tiene su propio `PrismaService`** (`src/prisma/`), que extiende el cliente generado desde su schema y se inyecta solo en los repositorios. No se comparte en `libs/` para preservar la independencia entre servicios. Al iniciar ejecuta `SELECT 1`: con `@prisma/adapter-pg`, `$connect()` no abre conexiones, así que sin esa consulta el servicio arrancaría aunque la base no esté disponible.
+- **`.pnpmfile.cjs` quita `prisma` y `typescript` de las peer dependencies de `@prisma/client`.** Son peers opcionales, pero pnpm los vincula porque ambos son devDependencies del proyecto, y ese vínculo queda en el lockfile: sin el hook, `pnpm install --prod` instala el CLI de Prisma (y Studio, PGlite, TypeScript, etc.) en las imágenes de producción. El cliente no los necesita en runtime. Si se modifica este archivo hay que regenerar el lockfile con `pnpm install`.
+- **Las imágenes Docker instalan Prisma solo si el servicio lo usa.** El build arg `USES_PRISMA` (por defecto `true`) se define por servicio en `docker-compose.yml`; el Gateway lo pone en `false` y su imagen no incluye `@prisma/client` ni `@prisma/adapter-pg`.
 
 Scripts (reemplazar `<servicio>` por `auth`, `erp` o `payments`):
 
