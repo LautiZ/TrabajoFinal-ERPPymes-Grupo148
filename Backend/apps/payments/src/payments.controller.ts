@@ -5,8 +5,8 @@ import { PaymentsService } from './payments.service';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  @Get()
-  getHello(): string {
-    return this.paymentsService.getHello();
+  @Get('payments/count')
+  countPayments(): Promise<number> {
+    return this.paymentsService.countPayments();
   }
 }

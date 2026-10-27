@@ -68,6 +68,7 @@ Convenciones:
 - **Cada modelo y enum declara `@@schema("<servicio>")`**, en coincidencia con la lista `schemas` de su datasource.
 - **Los clientes generados no se versionan** (están en el `.gitignore` y excluidos de ESLint). Ejecutar `pnpm prisma:generate` después de clonar el repositorio o de modificar un schema. Se generan con `importFileExtension = ""` para que el build con webpack de Nest pueda resolver sus imports internos.
 - Las restricciones que Prisma no puede expresar (por ejemplo, `CHECK`) se agregan a mano en el SQL de la migración, creada con `migrate dev --create-only`.
+- **Cada servicio tiene su propio `PrismaService`** (`src/prisma/`), que extiende el cliente generado desde su schema y se inyecta solo en los repositorios. No se comparte en `libs/` para preservar la independencia entre servicios. Al iniciar ejecuta `SELECT 1`: con `@prisma/adapter-pg`, `$connect()` no abre conexiones, así que sin esa consulta el servicio arrancaría aunque la base no esté disponible.
 
 Scripts (reemplazar `<servicio>` por `auth`, `erp` o `payments`):
 
