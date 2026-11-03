@@ -31,7 +31,28 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
+  sessions Session[]
+
   @@unique([role], map: "uq_users_single_owner", where: raw("role = 'Owner'"))
   @@map("users")
+  @@schema("auth")
+}
+
+// A session is active when revokedAt is null and expiresAt is in the future.
+// Its id is used as the JWT jti, so revoking the row invalidates the token.
+model Session {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_sessions_user_id")
+
+  // Active sessions of a user
+  @@index([userId, expiresAt], map: "idx_sessions_user_id_expires_at")
+  // Cleanup of expired sessions
+  @@index([expiresAt], map: "idx_sessions_expires_at")
+  @@map("sessions")
   @@schema("auth")
 }
