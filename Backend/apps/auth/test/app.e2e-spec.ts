@@ -1,25 +1,55 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import request from 'supertest';
-import { App } from 'supertest/types';
+import { INestMicroservice } from '@nestjs/common';
+import {
+  ClientProxy,
+  ClientProxyFactory,
+  Transport,
+} from '@nestjs/microservices';
+import { Test } from '@nestjs/testing';
+import { firstValueFrom } from 'rxjs';
+import { AUTH_PATTERNS } from '@app/contracts';
 import { AuthModule } from './../src/auth.module';
+import { PrismaService } from './../src/prisma/prisma.service';
+import { UsersRepository } from './../src/users/users.repository';
 
-describe('AuthController (e2e)', () => {
-  let app: INestApplication<App>;
+const TEST_PORT = 4001;
+const tcpOptions = { host: '127.0.0.1', port: TEST_PORT };
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
+describe('Auth microservice (e2e)', () => {
+  let app: INestMicroservice;
+  let client: ClientProxy;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
       imports: [AuthModule],
-    }).compile();
+    })
+      // No database: PrismaService and the repository are replaced
+      .overrideProvider(PrismaService)
+      .useValue({})
+      .overrideProvider(UsersRepository)
+      .useValue({ count: jest.fn().mockResolvedValue(7) })
+      .compile();
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    app = moduleRef.createNestMicroservice({
+      transport: Transport.TCP,
+      options: tcpOptions,
+    });
+    await app.listen();
+
+    client = ClientProxyFactory.create({
+      transport: Transport.TCP,
+      options: tcpOptions,
+    });
+    await client.connect();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  afterAll(async () => {
+    await client.close();
+    await app.close();
+  });
+
+  it('answers the users count pattern over TCP', async () => {
+    await expect(
+      firstValueFrom(client.send<number>(AUTH_PATTERNS.COUNT_USERS, {})),
+    ).resolves.toBe(7);
   });
 });

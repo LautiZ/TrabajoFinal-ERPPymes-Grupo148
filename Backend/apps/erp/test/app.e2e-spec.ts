@@ -1,25 +1,55 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import request from 'supertest';
+import { INestMicroservice } from '@nestjs/common';
+import {
+  ClientProxy,
+  ClientProxyFactory,
+  Transport,
+} from '@nestjs/microservices';
+import { Test } from '@nestjs/testing';
+import { firstValueFrom } from 'rxjs';
+import { ERP_PATTERNS } from '@app/contracts';
 import { ErpModule } from './../src/erp.module';
-import { App } from 'supertest/types';
+import { PrismaService } from './../src/prisma/prisma.service';
+import { ProductsRepository } from './../src/products/products.repository';
 
-describe('ErpController (e2e)', () => {
-  let app: INestApplication<App>;
+const TEST_PORT = 4002;
+const tcpOptions = { host: '127.0.0.1', port: TEST_PORT };
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
+describe('ERP microservice (e2e)', () => {
+  let app: INestMicroservice;
+  let client: ClientProxy;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
       imports: [ErpModule],
-    }).compile();
+    })
+      // No database: PrismaService and the repository are replaced
+      .overrideProvider(PrismaService)
+      .useValue({})
+      .overrideProvider(ProductsRepository)
+      .useValue({ count: jest.fn().mockResolvedValue(12) })
+      .compile();
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    app = moduleRef.createNestMicroservice({
+      transport: Transport.TCP,
+      options: tcpOptions,
+    });
+    await app.listen();
+
+    client = ClientProxyFactory.create({
+      transport: Transport.TCP,
+      options: tcpOptions,
+    });
+    await client.connect();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  afterAll(async () => {
+    await client.close();
+    await app.close();
+  });
+
+  it('answers the products count pattern over TCP', async () => {
+    await expect(
+      firstValueFrom(client.send<number>(ERP_PATTERNS.COUNT_PRODUCTS, {})),
+    ).resolves.toBe(12);
   });
 });

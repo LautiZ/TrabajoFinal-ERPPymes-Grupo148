@@ -1,25 +1,55 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import request from 'supertest';
+import { INestMicroservice } from '@nestjs/common';
+import {
+  ClientProxy,
+  ClientProxyFactory,
+  Transport,
+} from '@nestjs/microservices';
+import { Test } from '@nestjs/testing';
+import { firstValueFrom } from 'rxjs';
+import { PAYMENTS_PATTERNS } from '@app/contracts';
 import { PaymentsModule } from './../src/payments.module';
-import { App } from 'supertest/types';
+import { PrismaService } from './../src/prisma/prisma.service';
+import { PaymentsRepository } from './../src/payments/payments.repository';
 
-describe('PaymentsController (e2e)', () => {
-  let app: INestApplication<App>;
+const TEST_PORT = 4003;
+const tcpOptions = { host: '127.0.0.1', port: TEST_PORT };
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
+describe('Payments microservice (e2e)', () => {
+  let app: INestMicroservice;
+  let client: ClientProxy;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
       imports: [PaymentsModule],
-    }).compile();
+    })
+      // No database: PrismaService and the repository are replaced
+      .overrideProvider(PrismaService)
+      .useValue({})
+      .overrideProvider(PaymentsRepository)
+      .useValue({ count: jest.fn().mockResolvedValue(3) })
+      .compile();
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+    app = moduleRef.createNestMicroservice({
+      transport: Transport.TCP,
+      options: tcpOptions,
+    });
+    await app.listen();
+
+    client = ClientProxyFactory.create({
+      transport: Transport.TCP,
+      options: tcpOptions,
+    });
+    await client.connect();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  afterAll(async () => {
+    await client.close();
+    await app.close();
+  });
+
+  it('answers the payments count pattern over TCP', async () => {
+    await expect(
+      firstValueFrom(client.send<number>(PAYMENTS_PATTERNS.COUNT_PAYMENTS, {})),
+    ).resolves.toBe(3);
   });
 });
