@@ -35,4 +35,8 @@ export const routes: Routes = [
     path: '**',
     loadComponent: () => import('./features/not-found/not-found').then((m) => m.NotFound),
   },
+  {
+    path: 'ui-demo',
+    loadComponent: () => import('./features/ui-demo/ui-demo').then((m) => m.UiDemo),
+  },
 ];
