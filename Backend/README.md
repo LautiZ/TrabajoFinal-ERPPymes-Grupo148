@@ -6,13 +6,13 @@ Monorepo NestJS con el backend del Trabajo Final. La documentación general del 
 
 Monorepo nativo de Nest CLI, gestionado con pnpm:
 
-| Ruta             | Contenido                                                                                       | Puerto |
-| ---------------- | ----------------------------------------------------------------------------------------------- | ------ |
-| `apps/gateway`   | API Gateway: único servicio expuesto al exterior                                                | `3000` |
-| `apps/auth`      | Microservicio de autenticación y usuarios                                                       | `3001` |
-| `apps/erp`       | Microservicio de productos, stock y ventas                                                      | `3002` |
-| `apps/payments`  | Microservicio de pagos (Mercado Pago)                                                           | `3003` |
-| `libs/contracts` | Código compartido entre servicios: carga y validación de variables de entorno y DTOs comunes    | —      |
+| Ruta             | Contenido                                                                                                              | Puerto         |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `apps/gateway`   | API Gateway: único servicio expuesto al exterior                                                                       | `3000` (HTTP)  |
+| `apps/auth`      | Microservicio de autenticación y usuarios                                                                              | `3001` (TCP)   |
+| `apps/erp`       | Microservicio de productos, stock y ventas                                                                             | `3002` (TCP)   |
+| `apps/payments`  | Microservicio de pagos (Mercado Pago)                                                                                  | `3003` (TCP)   |
+| `libs/contracts` | Código compartido entre servicios: variables de entorno, tokens de los clientes TCP, patrones de mensajes y DTOs comunes | —              |
 
 ## Requisitos
 
@@ -50,6 +50,30 @@ pnpm start:dev payments
 ```
 
 Para levantar el sistema completo (PostgreSQL y los cuatro servicios en una red privada de Docker), seguir los pasos de [Levantar el entorno](../README.md#levantar-el-entorno) del README de la raíz.
+
+Para verificar que el Gateway llega a los tres microservicios:
+
+```bash
+curl http://localhost:3000/health
+# 200 {"auth":"up","erp":"up","payments":"up"}
+# 503 si alguno no responde, con el estado de cada uno
+```
+
+`pnpm build` compila solo el proyecto por defecto del monorepo (el Gateway). Para compilar un microservicio:
+
+```bash
+pnpm exec nest build auth
+pnpm exec nest build erp
+pnpm exec nest build payments
+```
+
+## Comunicación entre servicios
+
+- **Solo el Gateway habla HTTP.** Auth, ERP y Payments son microservicios TCP puros (`NestFactory.createMicroservice` con `Transport.TCP`): no exponen rutas HTTP.
+- **Cada microservicio escucha en `HOST`**, que por defecto es `0.0.0.0`. Nest escucha en `localhost` si no se indica otro host, y dentro de un contenedor eso impide que el Gateway, que corre en otro contenedor, pueda conectarse.
+- **Los patrones de mensajes y los tokens de inyección** se definen en `libs/contracts/src/messaging.ts`, para que el Gateway (emisor) y cada microservicio (receptor) usen el mismo contrato.
+- **El Gateway registra un cliente TCP por servicio** con `ClientsModule`, a partir de `AUTH_MS_HOST`/`AUTH_MS_PORT`, etc.
+- **Las llamadas usan un timeout de 5 segundos y no se reintentan.** El cliente TCP de Nest no reintenta mensajes, y reintentarlos a mano podría duplicar operaciones que no son idempotentes (por ejemplo, crear una venta).
 
 ## Base de datos (Prisma)
 
@@ -100,6 +124,12 @@ TypeScript corre en modo `strict`, y reglas como `no-explicit-any` y `no-floatin
 pnpm test            # tests unitarios
 pnpm test:cov        # cobertura
 pnpm test:e2e        # tests e2e del Gateway
+
+# tests e2e de un microservicio (<servicio> = auth, erp o payments)
+pnpm exec jest --config apps/<servicio>/test/jest-e2e.json
 ```
 
 Cada servicio tiene su configuración e2e en `apps/<servicio>/test/jest-e2e.json`.
+
+- **Gateway:** prueba `GET /health` por HTTP con el `AppService` reemplazado por un mock, así que no necesita los microservicios.
+- **Microservicios:** levantan un servidor TCP real en un puerto de prueba (`4001` a `4003`) y le envían el patrón con un `ClientProxy`. `PrismaService` y el repositorio se reemplazan por mocks, así que no necesitan la base de datos.
