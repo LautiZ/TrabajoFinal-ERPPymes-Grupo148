@@ -1,1 +1,37 @@
-<p>dashboard works!</p>
+<app-page-header
+  eyebrow="Resumen"
+  title="Panel principal"
+  subtitle="El pulso de tu negocio en un vistazo."
+>
+  <a mat-flat-button routerLink="/sales">Nueva venta</a>
+</app-page-header>
+
+<section class="kpis" aria-label="Indicadores">
+  @for (indicator of indicators; track indicator.label) {
+  <app-stat-card
+    [label]="indicator.label"
+    value="—"
+    [hint]="indicator.hint"
+    [icon]="indicator.icon"
+    [tone]="indicator.tone ?? 'default'"
+  />
+  }
+</section>
+
+<section class="app-card panel" aria-labelledby="movements-title">
+  <div class="panel__head">
+    <div>
+      <h2 id="movements-title">Últimos movimientos de stock</h2>
+      <p class="panel__subtitle">Entradas y salidas recientes del inventario.</p>
+    </div>
+    <ul class="legend" aria-label="Referencias de color">
+      <li><span class="app-badge app-badge--income">Entradas</span></li>
+      <li><span class="app-badge app-badge--outcome">Salidas</span></li>
+    </ul>
+  </div>
+  <app-empty-state
+    icon="swap_vert"
+    title="Todavía no hay movimientos para mostrar"
+    description="Van a aparecer acá cuando se conecte el módulo de Inventario."
+  />
+</section>

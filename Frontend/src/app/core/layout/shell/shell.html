@@ -1,0 +1,84 @@
+<div class="shell">
+  <aside class="sidebar" [class.sidebar--open]="navOpen()" aria-label="Navegación principal">
+    <a class="brand" routerLink="/dashboard" (click)="closeNav()">
+      <span class="brand__mark" aria-hidden="true">
+        <mat-icon fontSet="material-symbols-outlined">hub</mat-icon>
+      </span>
+      <span class="brand__text">
+        <strong>ERP Pymes</strong>
+        <span class="app-eyebrow">Gestión integral</span>
+      </span>
+    </a>
+
+    <nav class="nav">
+      <p class="app-eyebrow nav__title">Módulos principales</p>
+      <ul>
+        @for (item of modules; track item.path) {
+        <li>
+          <a
+            class="nav__link"
+            [routerLink]="item.path"
+            routerLinkActive="nav__link--active"
+            ariaCurrentWhenActive="page"
+            (click)="closeNav()"
+          >
+            <mat-icon fontSet="material-symbols-outlined" aria-hidden="true"
+              >{{ item.icon }}</mat-icon
+            >
+            <span>{{ item.label }}</span>
+          </a>
+        </li>
+        }
+      </ul>
+    </nav>
+  </aside>
+
+  @if (navOpen()) {
+  <button type="button" class="backdrop" aria-label="Cerrar menú" (click)="closeNav()"></button>
+  }
+
+  <div class="main">
+    <header class="topbar">
+      <button
+        mat-icon-button
+        type="button"
+        class="topbar__menu"
+        aria-label="Abrir menú"
+        [attr.aria-expanded]="navOpen()"
+        (click)="toggleNav()"
+      >
+        <mat-icon fontSet="material-symbols-outlined">menu</mat-icon>
+      </button>
+
+      <label class="search">
+        <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">search</mat-icon>
+        <input
+          type="search"
+          placeholder="Buscar productos, SKU u órdenes… (próximamente)"
+          aria-label="Búsqueda global"
+          disabled
+        />
+      </label>
+
+      <a mat-flat-button class="topbar__new" routerLink="/sales">
+        <mat-icon fontSet="material-symbols-outlined">add</mat-icon>
+        Nuevo
+      </a>
+
+      <!-- TODO(TES-36): mostrar nombre y rol del usuario autenticado. -->
+      <div class="user" aria-label="Usuario">
+        <span class="user__avatar" aria-hidden="true">
+          <mat-icon fontSet="material-symbols-outlined">person</mat-icon>
+        </span>
+        <span class="user__text">
+          <strong>Usuario</strong>
+          <span class="app-eyebrow">Sesión</span>
+        </span>
+      </div>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

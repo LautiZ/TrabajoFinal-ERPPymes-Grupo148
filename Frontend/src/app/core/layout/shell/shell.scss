@@ -1,0 +1,246 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
+  min-height: 100vh;
+
+  @media (max-width: 960px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+// ---------- Barra lateral ----------
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem 0.875rem;
+  background: var(--app-sidebar);
+  border-right: 1px solid var(--app-border);
+
+  @media (max-width: 960px) {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 30;
+    width: var(--app-sidebar-width);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+}
+
+.sidebar--open {
+  transform: translateX(0);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  border: 0;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  text-decoration: none;
+  color: var(--app-text);
+}
+
+.brand__mark {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  color: var(--app-on-accent);
+  background: linear-gradient(135deg, var(--app-accent), var(--app-accent-strong));
+}
+
+.brand__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+
+  strong {
+    font: var(--mat-sys-title-medium);
+    font-weight: 700;
+  }
+}
+
+.nav {
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+
+.nav__title {
+  margin: 0 0 0.5rem;
+  padding: 0 0.75rem;
+}
+
+.nav__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.75rem;
+  text-decoration: none;
+  color: var(--app-text);
+  font: var(--mat-sys-label-large);
+  font-size: 0.95rem;
+
+  mat-icon {
+    color: var(--app-text-muted);
+  }
+
+  &:hover {
+    background: var(--app-surface-2);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
+  }
+}
+
+.nav__link--active {
+  color: var(--app-on-accent);
+  background: var(--app-accent);
+  font-weight: 600;
+
+  mat-icon {
+    color: var(--app-on-accent);
+  }
+
+  &:hover {
+    background: var(--app-accent);
+  }
+}
+
+// ---------- Barra superior ----------
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: var(--app-topbar-height);
+  padding: 0 1.5rem;
+  background: color-mix(in srgb, var(--app-bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--app-border);
+
+  @media (max-width: 960px) {
+    padding: 0 0.75rem;
+  }
+}
+
+.topbar__menu {
+  display: none;
+
+  @media (max-width: 960px) {
+    display: inline-flex;
+  }
+}
+
+.search {
+  flex: 1;
+  max-width: 34rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.875rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  color: var(--app-text-muted);
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--app-text);
+    font: inherit;
+
+    &::placeholder {
+      color: var(--app-text-muted);
+    }
+  }
+
+  &:focus-within {
+    border-color: var(--app-accent);
+  }
+}
+
+.topbar__new {
+  margin-left: auto;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding-left: 0.5rem;
+}
+
+.user__avatar {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--app-surface-3);
+  color: var(--app-text-muted);
+}
+
+.user__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+
+  @media (max-width: 600px) {
+    display: none;
+  }
+}
+
+// ---------- Contenido ----------
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: 1.75rem 2rem 3rem;
+
+  @media (max-width: 960px) {
+    padding: 1.25rem 1rem 2rem;
+  }
+}

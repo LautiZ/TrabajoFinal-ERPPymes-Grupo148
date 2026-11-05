@@ -1,0 +1,36 @@
+.not-found {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.not-found__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: min(100%, 26rem);
+  padding: 2rem;
+  text-align: center;
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-headline-small);
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.not-found__code {
+  font: var(--mat-sys-display-medium);
+  font-weight: 700;
+  color: var(--app-accent);
+}
+
+.not-found__hint {
+  margin-bottom: 0.75rem !important;
+  color: var(--app-text-muted);
+}
