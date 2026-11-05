@@ -1,0 +1,85 @@
+<app-page-header
+  eyebrow="Ventas & Pagos"
+  title="Cobrar venta"
+  subtitle="Revisá la orden y confirmá el cobro."
+/>
+
+<section class="checkout">
+  @if (cart.isEmpty()) {
+  <div class="checkout__empty" role="status">
+    <p>No hay productos en el carrito.</p>
+    <a mat-flat-button routerLink="/sales">Volver al punto de venta</a>
+  </div>
+  } @else {
+  <div class="checkout__layout">
+    <form class="checkout__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <fieldset>
+        <legend>Método de pago</legend>
+        <mat-radio-group formControlName="paymentMethod" aria-label="Método de pago">
+          <mat-radio-button value="mercadopago">Mercado Pago</mat-radio-button>
+        </mat-radio-group>
+      </fieldset>
+
+      <fieldset>
+        <legend>Datos del cliente</legend>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Nombre</mat-label>
+          <input matInput formControlName="customerName" autocomplete="name" required />
+          @if (form.controls.customerName.hasError('required')) {
+          <mat-error>El nombre es obligatorio.</mat-error>
+          } @else if (form.controls.customerName.hasError('maxlength')) {
+          <mat-error>Máximo 100 caracteres.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input
+            matInput
+            type="email"
+            formControlName="customerEmail"
+            autocomplete="email"
+            required
+          />
+          @if (form.controls.customerEmail.hasError('required')) {
+          <mat-error>El email es obligatorio.</mat-error>
+          } @else if (form.controls.customerEmail.hasError('email')) {
+          <mat-error>Ingresá un email válido.</mat-error>
+          } @else if (form.controls.customerEmail.hasError('maxlength')) {
+          <mat-error>Máximo 120 caracteres.</mat-error>
+          }
+        </mat-form-field>
+      </fieldset>
+
+      <div class="checkout__actions">
+        <a mat-button routerLink="/sales">Volver al carrito</a>
+        <button mat-flat-button type="submit" [disabled]="!canSubmit()">
+          @if (submitting()) {
+          <mat-progress-spinner mode="indeterminate" diameter="20" />
+          Procesando... } @else { Confirmar y pagar }
+        </button>
+      </div>
+    </form>
+
+    <aside class="checkout__summary" aria-labelledby="summary-title">
+      <h2 id="summary-title">Resumen de la orden</h2>
+      <ul>
+        @for (item of cart.items(); track item.productId) {
+        <li>
+          <span>{{ item.quantity }} {{ unitLabels[item.unit] }} × {{ item.name }}</span>
+          <span>{{ lineTotal(item) | currency: 'ARS' : 'symbol-narrow' }}</span>
+        </li>
+        }
+      </ul>
+      <p class="checkout__total">
+        <span>Total</span>
+        <strong>{{ cart.total() | currency: 'ARS' : 'symbol-narrow' }}</strong>
+      </p>
+      <p class="checkout__hint">
+        El total definitivo lo confirma el sistema al registrar la venta.
+      </p>
+    </aside>
+  </div>
+  }
+</section>
