@@ -1,0 +1,87 @@
+<section class="cart" aria-labelledby="cart-title">
+  <header class="cart__header">
+    <h2 id="cart-title">Carrito</h2>
+    <span class="cart__count" aria-live="polite">
+      {{ cart.itemCount() }} {{ cart.itemCount() === 1 ? 'ítem' : 'ítems' }}
+    </span>
+    @if (!cart.isEmpty()) {
+    <button mat-button type="button" (click)="cart.clear()">Vaciar</button>
+    }
+  </header>
+
+  @if (cart.isEmpty()) {
+  <div class="cart__empty">
+    <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">shopping_cart</mat-icon>
+    <p>El carrito está vacío.</p>
+    <button mat-stroked-button type="button" (click)="browse.emit()">Buscar productos</button>
+  </div>
+  } @else {
+  <ul class="cart__list">
+    @for (item of cart.items(); track item.productId) {
+    <li class="line">
+      <div class="line__info">
+        <span class="line__name">{{ item.name }}</span>
+        <span class="line__meta">
+          {{ item.unitPrice | currency: 'ARS' : 'symbol-narrow' }} / {{ unitLabels[item.unit] }}
+        </span>
+      </div>
+
+      <div class="line__qty">
+        <button
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="'Quitar una unidad de ' + item.name"
+          (click)="decrease(item)"
+        >
+          <mat-icon fontSet="material-symbols-outlined">remove</mat-icon>
+        </button>
+        <input
+          #qty
+          type="number"
+          min="0"
+          [step]="item.unit === 'Unit' ? 1 : 0.001"
+          [value]="item.quantity"
+          [attr.aria-label]="'Cantidad de ' + item.name"
+          (change)="onQuantityInput(item, qty)"
+        />
+        <button
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="'Agregar una unidad de ' + item.name"
+          (click)="increase(item)"
+        >
+          <mat-icon fontSet="material-symbols-outlined">add</mat-icon>
+        </button>
+      </div>
+
+      <span class="line__total">{{ lineTotal(item) | currency: 'ARS' : 'symbol-narrow' }}</span>
+
+      <button
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="'Eliminar ' + item.name + ' del carrito'"
+        (click)="remove(item)"
+      >
+        <mat-icon fontSet="material-symbols-outlined">delete</mat-icon>
+      </button>
+    </li>
+    }
+  </ul>
+  }
+
+  <footer class="cart__footer">
+    <div class="cart__total">
+      <span>Total</span>
+      <strong>{{ cart.total() | currency: 'ARS' : 'symbol-narrow' }}</strong>
+    </div>
+    <button
+      mat-flat-button
+      type="button"
+      class="cart__pay"
+      [disabled]="cart.isEmpty()"
+      (click)="checkout()"
+    >
+      Cobrar
+    </button>
+  </footer>
+</section>
