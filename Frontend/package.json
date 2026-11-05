@@ -9,8 +9,7 @@
     "test": "ng test",
     "lint": "ng lint",
     "format": "prettier --write \"src/**/*.{ts,html,scss,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,html,scss,json}\"",
-    "mock-api": "node mock-api/server.mjs"
+    "format:check": "prettier --check \"src/**/*.{ts,html,scss,json}\""
   },
   "private": true,
   "packageManager": "pnpm@10.5.0",
