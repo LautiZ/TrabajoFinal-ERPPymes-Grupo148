@@ -1,0 +1,74 @@
+<section class="result app-card" aria-live="polite">
+  @switch (status()) { @case ('approved') {
+  <mat-icon
+    class="result__icon result__icon--ok"
+    fontSet="material-symbols-outlined"
+    aria-hidden="true"
+    >check_circle</mat-icon
+  >
+  <h1>Pago aprobado</h1>
+  <p>La venta fue confirmada. El carrito se vació.</p>
+  <div class="result__actions">
+    <a mat-flat-button routerLink="/sales">Nueva venta</a>
+  </div>
+  } @case ('rejected') {
+  <mat-icon
+    class="result__icon result__icon--error"
+    fontSet="material-symbols-outlined"
+    aria-hidden="true"
+    >cancel</mat-icon
+  >
+  <h1>Pago rechazado</h1>
+  <p>
+    No se pudo procesar el pago. Tu carrito sigue intacto: podés reintentar o cambiar los datos.
+  </p>
+  <div class="result__actions">
+    <a mat-button routerLink="/sales">Volver al POS</a>
+    <a mat-flat-button routerLink="/sales/checkout">Reintentar</a>
+  </div>
+  } @case ('pending') {
+  <mat-icon
+    class="result__icon result__icon--wait"
+    fontSet="material-symbols-outlined"
+    aria-hidden="true"
+    >schedule</mat-icon
+  >
+  <h1>Pago pendiente</h1>
+  @if (timedOut()) {
+  <p>
+    Mercado Pago todavía no confirmó el pago. Puede demorar unos minutos; revisá el estado de la
+    venta más tarde.
+  </p>
+  } @else {
+  <p>Estamos esperando la confirmación de Mercado Pago...</p>
+  <mat-progress-spinner mode="indeterminate" diameter="32" />
+  }
+  <div class="result__actions">
+    <a mat-flat-button routerLink="/sales">Volver al POS</a>
+  </div>
+  } @default { @if (verificationFailed()) {
+  <mat-icon
+    class="result__icon result__icon--error"
+    fontSet="material-symbols-outlined"
+    aria-hidden="true"
+    >error</mat-icon
+  >
+  <h1>No pudimos verificar el pago</h1>
+  <p>
+    No encontramos la venta o el servidor no respondió. No repitas el cobro sin confirmar antes el
+    estado de la venta.
+  </p>
+  <div class="result__actions">
+    <a mat-flat-button routerLink="/sales">Volver al POS</a>
+  </div>
+  } @else {
+  <mat-progress-spinner mode="indeterminate" diameter="40" />
+  <h1>Verificando el pago</h1>
+  @switch (returnHint) { @case ('approved') {
+  <p>Mercado Pago informó que el pago fue aprobado. Lo estamos confirmando.</p>
+  } @case ('rejected') {
+  <p>Mercado Pago informó que el pago fue rechazado. Lo estamos confirmando.</p>
+  } @default {
+  <p>Consultando el estado de la venta...</p>
+  } } } } }
+</section>
