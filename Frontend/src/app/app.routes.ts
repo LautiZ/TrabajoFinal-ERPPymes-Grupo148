@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard, roleGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -16,7 +17,7 @@ export const routes: Routes = [
     ],
   },
   {
-    // Páginas con barra lateral y superior.
+    
     path: '',
     loadComponent: () => import('./core/layout/shell/shell').then((m) => m.Shell),
     children: [
@@ -35,6 +36,13 @@ export const routes: Routes = [
       {
         path: 'sales',
         loadChildren: () => import('./features/sales/sales.routes').then((m) => m.SALES_ROUTES),
+      },
+      {
+        path: 'analytics',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['ADMIN'] },
+        loadChildren: () =>
+          import('./features/analytics/analytics.routes').then((m) => m.ANALYTICS_ROUTES),
       },
       {
         path: 'ui-demo',
