@@ -1,0 +1,89 @@
+<article class="chart-card" data-testid="sales-evolution-card">
+  <header class="chart-card__header">
+    <div>
+      <h2 class="chart-card__title">Evolución de ingresos y ventas</h2>
+      <p class="chart-card__subtitle">Comparativa temporal en el rango seleccionado</p>
+    </div>
+
+    <div class="chart-card__controls">
+      <div class="btn-group" role="group" aria-label="Agrupación temporal">
+        <button
+          type="button"
+          class="control-btn"
+          [class.control-btn--active]="activeGroupBy() === 'day'"
+          (click)="changeGroupBy('day')"
+          data-testid="groupby-day"
+        >
+          Día
+        </button>
+        <button
+          type="button"
+          class="control-btn"
+          [class.control-btn--active]="activeGroupBy() === 'week'"
+          (click)="changeGroupBy('week')"
+          data-testid="groupby-week"
+        >
+          Semana
+        </button>
+        <button
+          type="button"
+          class="control-btn"
+          [class.control-btn--active]="activeGroupBy() === 'month'"
+          (click)="changeGroupBy('month')"
+          data-testid="groupby-month"
+        >
+          Mes
+        </button>
+      </div>
+
+      <div class="btn-group" role="group" aria-label="Tipo de gráfico">
+        <button
+          type="button"
+          class="control-btn"
+          [class.control-btn--active]="chartType() === 'line'"
+          (click)="toggleChartType('line')"
+          data-testid="chart-type-line"
+        >
+          Línea
+        </button>
+        <button
+          type="button"
+          class="control-btn"
+          [class.control-btn--active]="chartType() === 'bar'"
+          (click)="toggleChartType('bar')"
+          data-testid="chart-type-bar"
+        >
+          Barras
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="chart-card__body">
+    @if (loading()) {
+      <div class="chart-skeleton" aria-busy="true" data-testid="evolution-loading"></div>
+    } @else if (error()) {
+      <div class="chart-state chart-state--error" role="alert" data-testid="evolution-error">
+        <p>{{ error() }}</p>
+        <button type="button" class="retry-btn" (click)="retry()" data-testid="evolution-retry">
+          Reintentar
+        </button>
+      </div>
+    } @else if (isEmpty()) {
+      <div class="chart-state chart-state--empty" data-testid="evolution-empty">
+        <p>Sin ventas en el período</p>
+      </div>
+    } @else {
+      <div class="chart-canvas-wrapper" data-testid="evolution-chart-container">
+        @if (isBrowser) {
+          <canvas
+            baseChart
+            [data]="chartData()"
+            [options]="chartOptions"
+            [type]="chartType()"
+          ></canvas>
+        }
+      </div>
+    }
+  </div>
+</article>
