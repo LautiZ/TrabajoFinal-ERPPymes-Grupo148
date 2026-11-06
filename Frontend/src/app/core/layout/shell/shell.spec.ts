@@ -21,7 +21,7 @@ describe('Shell', () => {
       s.textContent?.trim(),
     );
 
-    expect(labels).toEqual(['Panel Principal', 'Inventario & Stock', 'Ventas & Pagos']);
+    expect(labels).toEqual(['Panel Principal', 'Inventario & Stock', 'Ventas & Pagos','Analítica',]);
   });
 
   it('abre y cierra el menú lateral en pantallas chicas', () => {
@@ -37,4 +37,18 @@ describe('Shell', () => {
     fixture.detectChanges();
     expect(sidebar.classList.contains('sidebar--open')).toBe(false);
   });
+
+  it('oculta el link Analítica cuando el rol es VENDEDOR', async () => {
+  localStorage.setItem('user_role', 'VENDEDOR');
+  const fixture = TestBed.createComponent(Shell);
+  await fixture.whenStable();
+
+  const compiled = fixture.nativeElement as HTMLElement;
+  const labels = Array.from(compiled.querySelectorAll('.nav-item__label')).map((el) =>
+    el.textContent?.trim(),
+  );
+
+  expect(labels).not.toContain('Analítica');
+  localStorage.removeItem('user_role');
+});
 });
