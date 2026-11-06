@@ -1,5 +1,5 @@
 <section class="analytics-container">
-
+  <!-- Cabecera y Filtro de Fechas -->
   <header class="analytics-header">
     <div class="analytics-header__titles">
       <h1 class="analytics-header__title">Analítica Financiera</h1>
@@ -9,21 +9,16 @@
     </div>
 
     <div class="analytics-header__filter" data-testid="date-range-filter-slot">
-      
+      <app-date-range-filter />
     </div>
   </header>
 
-
-  <section class="analytics-kpi-grid" aria-label="Indicadores clave" data-testid="kpi-cards-slot">
-    <div class="kpi-placeholder">Ingresos</div>
-    <div class="kpi-placeholder">Cantidad de ventas</div>
-    <div class="kpi-placeholder">Ticket promedio</div>
-    <div class="kpi-placeholder">Unidades vendidas</div>
-    <div class="kpi-placeholder">Valorización de inventario</div>
-    <div class="kpi-placeholder">Stock bajo</div>
+  <!-- Grilla de Tarjetas KPI (Arriba) -->
+  <section aria-label="Indicadores clave" data-testid="kpi-cards-slot">
+    <app-kpi-cards />
   </section>
 
-
+  <!-- Grilla de Gráficos (Abajo) -->
   <section class="analytics-charts-grid" aria-label="Gráficos de evolución y productos" data-testid="charts-slot">
     <div class="chart-card-placeholder">
       Evolución de ingresos y ventas
