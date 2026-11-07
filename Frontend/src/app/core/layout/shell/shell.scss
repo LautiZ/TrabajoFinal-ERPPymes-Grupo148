@@ -219,6 +219,13 @@
   height: 2.25rem;
   border-radius: 50%;
   background: var(--app-surface-3);
+  font: var(--mat-sys-label-large);
+  font-weight: 700;
+  color: var(--app-accent);
+}
+
+.user__logout {
+  margin-left: 0.25rem;
   color: var(--app-text-muted);
 }
 
