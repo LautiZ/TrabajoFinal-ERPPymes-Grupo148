@@ -109,6 +109,23 @@ pnpm prisma:migrate:deploy:<servicio>
 pnpm prisma:studio:<servicio>
 ```
 
+### Seed inicial
+
+No hay registro público: solo el `Owner` o un `Admin` dan de alta usuarios, así que el seed es la única forma de crear el primer usuario. Crea el `Owner` y un catálogo de ejemplo (productos con stock alto, bajo y en cero, y unidades fraccionarias).
+
+1. Completar las variables `OWNER_*` en `apps/auth/.env` (ver `apps/auth/.env.example`). `OWNER_PASSWORD` debe tener al menos 12 caracteres; si falta alguna variable, el seed se detiene sin tocar la base.
+2. Con las migraciones aplicadas, ejecutar:
+
+```bash
+pnpm prisma:seed
+```
+
+Comportamiento:
+
+- **Es idempotente.** Si ya existe un `Owner`, no lo modifica (tampoco su contraseña) y reutiliza su id. Los productos que ya existen (por `sku`) se omiten, para no duplicar su stock.
+- **El stock entra como movimientos `Income`** (RN-01): cada producto y su movimiento se insertan en una misma transacción. Un producto sin stock no genera movimiento.
+- **Respeta la separación entre servicios.** `scripts/seed.ts` ejecuta primero el seed de Auth (`apps/auth/prisma/seed.ts`), obtiene el id del `Owner` y se lo pasa al seed del ERP (`apps/erp/prisma/seed.ts`), que nunca lee el schema `auth`. Cada `.env` se lee por separado con `dotenv.parse`, porque los dos definen `DATABASE_URL`.
+
 ## Calidad de código
 
 ```bash
