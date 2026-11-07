@@ -17,7 +17,6 @@ export const routes: Routes = [
     ],
   },
   {
-    
     path: '',
     loadComponent: () => import('./core/layout/shell/shell').then((m) => m.Shell),
     children: [
@@ -28,10 +27,8 @@ export const routes: Routes = [
       },
       {
         path: 'inventory',
-        loadComponent: () =>
-          import('./features/inventory/pages/inventory-list/inventory-list').then(
-            (m) => m.InventoryList,
-          ),
+        loadChildren: () =>
+          import('./features/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES),
       },
       {
         path: 'sales',

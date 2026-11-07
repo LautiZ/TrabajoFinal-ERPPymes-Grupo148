@@ -1,0 +1,94 @@
+:host {
+  display: block;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  mat-form-field {
+    min-width: 12rem;
+  }
+}
+
+.filters__search {
+  flex: 1 1 18rem;
+}
+
+.table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  transition: opacity 0.15s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.table-scroll--loading {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+table {
+  width: 100%;
+  background: transparent;
+}
+
+.num {
+  text-align: right;
+}
+
+.cell-title {
+  display: block;
+  font: var(--mat-sys-title-small);
+}
+
+.cell-sub {
+  display: block;
+  font: var(--mat-sys-label-small);
+  color: var(--app-text-muted);
+}
+
+.app-badge--paused {
+  color: var(--app-text-muted);
+  background: var(--app-surface-3);
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1rem;
+  color: var(--app-text-muted);
+
+  p {
+    margin: 0;
+  }
+}
+
+mat-paginator {
+  background: transparent;
+  border-top: 1px solid var(--app-border);
+}
+
+.actions-col {
+  width: 3.5rem;
+  text-align: right;
+}
+
+.row--low {
+  background: color-mix(in srgb, var(--app-warning) 7%, transparent);
+}
+
+.row--out {
+  background: color-mix(in srgb, var(--app-danger) 8%, transparent);
+}

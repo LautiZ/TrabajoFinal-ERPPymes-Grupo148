@@ -2,12 +2,149 @@
   eyebrow="Inventario"
   title="Inventario & Stock"
   subtitle="Catálogo de productos y existencias."
+>
+  <a mat-flat-button routerLink="/inventory/new">
+    <mat-icon fontSet="material-symbols-outlined">add</mat-icon>
+    Nuevo producto
+  </a>
+</app-page-header>
+
+<app-stock-summary
+  [refreshToken]="summaryVersion()"
+  [activeFilter]="state().stockStatus"
+  (filterChange)="onStockStatus($event)"
+  (thresholdChange)="reload()"
 />
 
-<section class="app-card">
+<section class="filters app-card" aria-label="Búsqueda y filtros">
+  <mat-form-field appearance="outline" class="filters__search" subscriptSizing="dynamic">
+    <mat-label>Buscar por nombre o SKU</mat-label>
+    <mat-icon matPrefix fontSet="material-symbols-outlined">search</mat-icon>
+    <input matInput type="search" autocomplete="off" [formControl]="search" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Categoría</mat-label>
+    <mat-select [value]="state().categoryId" (selectionChange)="onCategory($event.value)">
+      <mat-option value="">Todas</mat-option>
+      @for (category of categories(); track category.id) {
+      <mat-option [value]="category.id">{{ category.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Stock</mat-label>
+    <mat-select [value]="state().stockStatus" (selectionChange)="onStockStatus($event.value)">
+      <mat-option value="">Todos</mat-option>
+      <mat-option value="low">Stock bajo</mat-option>
+      <mat-option value="out">Sin stock</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  @if (filtersActive()) {
+  <button mat-button type="button" (click)="clearFilters()">Limpiar filtros</button>
+  }
+</section>
+
+<section class="table-card app-card" aria-label="Listado de productos" [attr.aria-busy]="loading()">
+  @if (loading() && products().length === 0) {
+  <app-loading-spinner message="Cargando inventario..." />
+  } @else if (error(); as message) {
+  <div class="state" role="alert">
+    <p>{{ message }}</p>
+    <button mat-stroked-button type="button" (click)="reload()">Reintentar</button>
+  </div>
+  } @else if (products().length === 0) { @if (filtersActive()) {
+  <app-empty-state
+    icon="search_off"
+    title="No hay productos que coincidan"
+    description="Probá con otra búsqueda o limpiá los filtros."
+  >
+    <button mat-stroked-button type="button" (click)="clearFilters()">Limpiar filtros</button>
+  </app-empty-state>
+  } @else {
   <app-empty-state
     icon="inventory_2"
-    title="La tabla de stock está en desarrollo"
-    description="Acá se va a listar el catálogo con búsqueda, orden y filtros."
+    title="Todavía no hay productos"
+    description="Cuando se carguen productos en el catálogo, van a aparecer acá."
   />
+  } } @else {
+  <div class="table-scroll" [class.table-scroll--loading]="loading()">
+    <table
+      mat-table
+      matSort
+      matSortDisableClear
+      [dataSource]="products()"
+      [matSortActive]="state().sortBy"
+      [matSortDirection]="state().sortOrder"
+      (matSortChange)="onSort($event)"
+    >
+      <ng-container matColumnDef="product">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Producto</th>
+        <td mat-cell *matCellDef="let product">
+          <span class="cell-title">{{ product.name }}</span>
+          <span class="cell-sub">{{ product.sku }}</span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="category">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="category">Categoría</th>
+        <td mat-cell *matCellDef="let product">{{ product.category?.name ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="price">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="price" class="num">Precio</th>
+        <td mat-cell *matCellDef="let product" class="num">
+          {{ product.price | currency: 'ARS' : 'symbol-narrow' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="stock">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="stock" class="num">Stock</th>
+        <td mat-cell *matCellDef="let product" class="num">
+          {{ product.stock | number: '1.0-3' }} {{ unitSymbol(product.unit) }}
+          <app-stock-badge [status]="statusOf(product)" />
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Estado</th>
+        <td mat-cell *matCellDef="let product">
+          @if (product.active) {
+          <span class="app-badge">Activo</span>
+          } @else {
+          <span class="app-badge app-badge--paused">Pausado</span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef class="actions-col">
+          <span class="cdk-visually-hidden">Acciones</span>
+        </th>
+        <td mat-cell *matCellDef="let product" class="actions-col">
+          <app-product-actions [product]="product" (changed)="reload()" />
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr
+        mat-row
+        *matRowDef="let row; columns: displayedColumns"
+        [class.row--low]="statusOf(row) === 'low'"
+        [class.row--out]="statusOf(row) === 'out'"
+      ></tr>
+    </table>
+  </div>
+
+  <mat-paginator
+    [length]="total()"
+    [pageSize]="state().limit"
+    [pageIndex]="state().page - 1"
+    [pageSizeOptions]="pageSizeOptions"
+    showFirstLastButtons
+    (page)="onPage($event)"
+  />
+  }
 </section>

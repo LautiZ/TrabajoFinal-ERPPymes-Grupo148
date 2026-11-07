@@ -1,0 +1,55 @@
+<section class="summary" aria-label="Resumen de stock">
+  <div class="tile">
+    <span class="app-eyebrow">Stock normal</span>
+    <strong class="tile__value tile__value--ok">{{ summary()?.ok ?? '—' }}</strong>
+    <span class="tile__hint">productos</span>
+  </div>
+
+  <button
+    type="button"
+    class="tile tile--action"
+    [class.tile--active]="activeFilter() === 'low'"
+    [attr.aria-pressed]="activeFilter() === 'low'"
+    aria-label="Filtrar por stock bajo"
+    (click)="toggle('low')"
+  >
+    <span class="app-eyebrow">Stock bajo</span>
+    <strong class="tile__value tile__value--low">{{ summary()?.low ?? '—' }}</strong>
+    <span class="tile__hint"
+      >{{ activeFilter() === 'low' ? 'Quitar filtro' : 'Ver en la tabla' }}</span
+    >
+  </button>
+
+  <button
+    type="button"
+    class="tile tile--action"
+    [class.tile--active]="activeFilter() === 'out'"
+    [attr.aria-pressed]="activeFilter() === 'out'"
+    aria-label="Filtrar por productos sin stock"
+    (click)="toggle('out')"
+  >
+    <span class="app-eyebrow">Sin stock</span>
+    <strong class="tile__value tile__value--out">{{ summary()?.out ?? '—' }}</strong>
+    <span class="tile__hint"
+      >{{ activeFilter() === 'out' ? 'Quitar filtro' : 'Ver en la tabla' }}</span
+    >
+  </button>
+
+  <div class="tile tile--threshold">
+    <label class="app-eyebrow" for="low-stock-threshold">Umbral de stock bajo</label>
+    <input
+      #thresholdInput
+      id="low-stock-threshold"
+      type="number"
+      min="0"
+      step="any"
+      [value]="threshold()"
+      (change)="applyThreshold(thresholdInput)"
+    />
+    <span class="tile__hint">Se considera bajo hasta este stock</span>
+  </div>
+</section>
+
+@if (error()) {
+<p class="error" role="alert">No se pudo calcular el resumen de stock.</p>
+}
