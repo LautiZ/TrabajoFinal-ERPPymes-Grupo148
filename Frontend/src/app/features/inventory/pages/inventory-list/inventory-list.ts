@@ -17,7 +17,7 @@ import { MatPaginatorIntl, MatPaginatorModule, PageEvent } from '@angular/materi
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   Subject,
   catchError,
@@ -61,6 +61,7 @@ const SEARCH_DEBOUNCE_MS = 300;
     CurrencyPipe,
     DecimalPipe,
     ReactiveFormsModule,
+    RouterLink,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
@@ -86,7 +87,14 @@ export class InventoryList {
   private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<void>();
 
-  protected readonly displayedColumns = ['product', 'category', 'price', 'stock', 'status'];
+  protected readonly displayedColumns = [
+    'product',
+    'category',
+    'price',
+    'stock',
+    'status',
+    'actions',
+  ];
   protected readonly pageSizeOptions = PAGE_SIZE_OPTIONS;
 
   protected readonly search = new FormControl('', { nonNullable: true });

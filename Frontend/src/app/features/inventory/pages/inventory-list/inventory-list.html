@@ -2,7 +2,12 @@
   eyebrow="Inventario"
   title="Inventario & Stock"
   subtitle="Catálogo de productos y existencias."
-/>
+>
+  <a mat-flat-button routerLink="/inventory/new">
+    <mat-icon fontSet="material-symbols-outlined">add</mat-icon>
+    Nuevo producto
+  </a>
+</app-page-header>
 
 <section class="filters app-card" aria-label="Búsqueda y filtros">
   <mat-form-field appearance="outline" class="filters__search" subscriptSizing="dynamic">
@@ -103,6 +108,21 @@
           } @else {
           <span class="app-badge app-badge--paused">Pausado</span>
           }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef class="actions-col">
+          <span class="cdk-visually-hidden">Acciones</span>
+        </th>
+        <td mat-cell *matCellDef="let product" class="actions-col">
+          <a
+            mat-icon-button
+            [routerLink]="['/inventory', product.id, 'edit']"
+            [attr.aria-label]="'Editar ' + product.name"
+          >
+            <mat-icon fontSet="material-symbols-outlined">edit</mat-icon>
+          </a>
         </td>
       </ng-container>
 
