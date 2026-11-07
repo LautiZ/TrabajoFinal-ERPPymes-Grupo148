@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
 import { authGuard, roleGuard } from './core/guards/auth.guard';
-import { INVENTORY_WRITE_ROLES } from './features/inventory/utils/inventory-roles';
 
 export const routes: Routes = [
   {
@@ -28,33 +27,8 @@ export const routes: Routes = [
       },
       {
         path: 'inventory',
-        children: [
-          {
-            path: '',
-            loadComponent: () =>
-              import('./features/inventory/pages/inventory-list/inventory-list').then(
-                (m) => m.InventoryList,
-              ),
-          },
-          {
-            path: 'new',
-            canActivate: [authGuard, roleGuard],
-            data: { roles: [...INVENTORY_WRITE_ROLES] },
-            loadComponent: () =>
-              import('./features/inventory/pages/product-form/product-form').then(
-                (m) => m.ProductForm,
-              ),
-          },
-          {
-            path: ':id/edit',
-            canActivate: [authGuard, roleGuard],
-            data: { roles: [...INVENTORY_WRITE_ROLES] },
-            loadComponent: () =>
-              import('./features/inventory/pages/product-form/product-form').then(
-                (m) => m.ProductForm,
-              ),
-          },
-        ],
+        loadChildren: () =>
+          import('./features/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES),
       },
       {
         path: 'sales',
