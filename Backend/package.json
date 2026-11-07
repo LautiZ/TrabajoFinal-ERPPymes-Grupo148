@@ -26,6 +26,7 @@
     "prisma:migrate:dev:payments": "prisma migrate dev --config apps/payments/prisma.config.ts",
     "prisma:migrate:deploy:payments": "prisma migrate deploy --config apps/payments/prisma.config.ts",
     "prisma:studio:payments": "prisma studio --config apps/payments/prisma.config.ts",
+    "prisma:seed": "ts-node -r tsconfig-paths/register scripts/seed.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
