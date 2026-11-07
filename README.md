@@ -91,3 +91,7 @@ Requiere Docker. Las credenciales no se versionan: cada `.env.example` del repos
    ```
 
 El API Gateway queda disponible en `http://localhost:3000`. Auth, ERP y Payments solo son accesibles dentro de la red interna de Docker.
+
+Las migraciones se aplican solas. El servicio `migrate` es un job de una sola ejecución: espera a que PostgreSQL esté sano, ejecuta `prisma migrate deploy` para los schemas `auth`, `erp` y `payments`, y termina. Auth, ERP y Payments arrancan recién cuando ese job terminó con éxito (`service_completed_successfully`); si una migración falla, los servicios no se levantan. En las ejecuciones siguientes no hay migraciones pendientes y el job termina enseguida. Que `docker compose ps -a` muestre `migrate` como `Exited (0)` es lo esperado.
+
+Para tener un usuario `Owner` y datos de ejemplo, correr el seed después de levantar el entorno (ver [Seed inicial](Backend/README.md#seed-inicial)).

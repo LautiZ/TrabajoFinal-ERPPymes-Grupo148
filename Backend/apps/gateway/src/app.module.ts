@@ -1,9 +1,30 @@
 import { Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { AUTH_SERVICE, ERP_SERVICE, PAYMENTS_SERVICE } from '@app/contracts';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { envs } from './config/envs';
 
 @Module({
-  imports: [],
+  imports: [
+    ClientsModule.register([
+      {
+        name: AUTH_SERVICE,
+        transport: Transport.TCP,
+        options: { host: envs.AUTH_MS_HOST, port: envs.AUTH_MS_PORT },
+      },
+      {
+        name: ERP_SERVICE,
+        transport: Transport.TCP,
+        options: { host: envs.ERP_MS_HOST, port: envs.ERP_MS_PORT },
+      },
+      {
+        name: PAYMENTS_SERVICE,
+        transport: Transport.TCP,
+        options: { host: envs.PAYMENTS_MS_HOST, port: envs.PAYMENTS_MS_PORT },
+      },
+    ]),
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

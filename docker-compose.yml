@@ -21,6 +21,22 @@ services:
       timeout: 5s
       retries: 5
 
+  migrate: # one-shot: applies migrations and exits (no restart policy on purpose)
+    build:
+      context: ./Backend
+      target: migrate
+    image: erp-pymes-migrate
+    container_name: erp-pymes-migrate
+    environment:
+      AUTH_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=auth
+      ERP_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=erp
+      PAYMENTS_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=payments
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   auth:
     build:
       context: ./Backend
@@ -37,6 +53,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   erp:
     build:
@@ -54,6 +72,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   payments:
     build:
@@ -71,12 +91,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   gateway:
     build:
       context: ./Backend
       args:
         APP: gateway
+        USES_PRISMA: "false"
     image: erp-pymes-gateway
     container_name: erp-pymes-gateway
     restart: unless-stopped
