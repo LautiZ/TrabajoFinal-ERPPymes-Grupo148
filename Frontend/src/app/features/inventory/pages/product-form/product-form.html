@@ -1,0 +1,108 @@
+<app-page-header
+  eyebrow="Inventario"
+  [title]="isEdit ? 'Editar producto' : 'Nuevo producto'"
+  [subtitle]="isEdit ? 'Modificá los datos del producto.' : 'Cargá un producto en el catálogo.'"
+/>
+
+@if (loading()) {
+<app-loading-spinner message="Cargando..." />
+} @else if (loadError(); as message) {
+<section class="app-card state" role="alert">
+  <p>{{ message }}</p>
+  <div class="state__actions">
+    <a mat-button routerLink="/inventory">Volver al inventario</a>
+    <button mat-stroked-button type="button" (click)="load()">Reintentar</button>
+  </div>
+</section>
+} @else {
+<form class="form app-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <mat-form-field appearance="outline">
+    <mat-label>Nombre</mat-label>
+    <input matInput formControlName="name" autocomplete="off" required />
+    @if (form.controls.name.hasError('required')) {
+    <mat-error>El nombre es obligatorio.</mat-error>
+    } @else if (form.controls.name.hasError('maxlength')) {
+    <mat-error>Máximo 120 caracteres.</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>SKU</mat-label>
+    <input matInput formControlName="sku" autocomplete="off" required />
+    @if (form.controls.sku.hasError('required')) {
+    <mat-error>El SKU es obligatorio.</mat-error>
+    } @else if (form.controls.sku.hasError('pattern')) {
+    <mat-error>El SKU no puede tener espacios.</mat-error>
+    } @else if (form.controls.sku.hasError('maxlength')) {
+    <mat-error>Máximo 60 caracteres.</mat-error>
+    } @else if (form.controls.sku.hasError('duplicate')) {
+    <mat-error>Ya existe un producto con ese SKU.</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Categoría</mat-label>
+    <mat-select formControlName="categoryId" required>
+      @for (category of categories(); track category.id) {
+      <mat-option [value]="category.id">{{ category.name }}</mat-option>
+      }
+    </mat-select>
+    @if (form.controls.categoryId.hasError('required')) {
+    <mat-error>Elegí una categoría.</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Precio (ARS)</mat-label>
+    <input matInput type="number" step="0.01" min="0" formControlName="price" required />
+    @if (form.controls.price.hasError('required')) {
+    <mat-error>El precio es obligatorio.</mat-error>
+    } @else if (form.controls.price.hasError('min')) {
+    <mat-error>El precio debe ser mayor a 0.</mat-error>
+    } @else if (form.controls.price.hasError('maxDecimals')) {
+    <mat-error>Máximo 2 decimales.</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Unidad de medida</mat-label>
+    <mat-select formControlName="unit">
+      @for (unit of units; track unit) {
+      <mat-option [value]="unit">{{ unitLabels[unit] }}</mat-option>
+      }
+    </mat-select>
+    @if (isEdit) {
+    <mat-hint>La unidad no se modifica una vez creado el producto.</mat-hint>
+    }
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>{{ isEdit ? 'Stock actual' : 'Stock inicial' }}</mat-label>
+    <input matInput type="number" step="any" min="0" formControlName="stock" required />
+    @if (isEdit) {
+    <mat-hint>El stock se modifica con un ajuste de stock desde el listado.</mat-hint>
+    } @if (form.controls.stock.hasError('required')) {
+    <mat-error>El stock es obligatorio.</mat-error>
+    } @else if (form.controls.stock.hasError('min')) {
+    <mat-error>El stock no puede ser negativo.</mat-error>
+    } @else if (form.controls.stock.hasError('integer')) {
+    <mat-error>Este producto se mide por unidad: ingresá un número entero.</mat-error>
+    } @else if (form.controls.stock.hasError('maxDecimals')) {
+    <mat-error>Máximo 3 decimales.</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-slide-toggle formControlName="active" class="form__toggle">
+    Producto activo (disponible para la venta)
+  </mat-slide-toggle>
+
+  <div class="form__actions">
+    <a mat-button routerLink="/inventory">Cancelar</a>
+    <button mat-flat-button type="submit" [disabled]="saving()">
+      @if (saving()) {
+      <mat-progress-spinner mode="indeterminate" diameter="20" />
+      Guardando... } @else { {{ isEdit ? 'Guardar cambios' : 'Crear producto' }} }
+    </button>
+  </div>
+</form>
+}

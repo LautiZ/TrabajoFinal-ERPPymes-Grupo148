@@ -5,6 +5,7 @@ import {
   ParamMap,
   Router,
   convertToParamMap,
+  provideRouter,
 } from '@angular/router';
 import { BehaviorSubject, NEVER, of, throwError } from 'rxjs';
 import type { Mock } from 'vitest';
@@ -21,7 +22,6 @@ function pageOf(data: Product[], total = data.length): PaginatedResponse<Product
 describe('InventoryList', () => {
   let params$: BehaviorSubject<ParamMap>;
   let inventory: { list: Mock; listCategories: Mock };
-  let router: { navigate: Mock };
   let fixture: ComponentFixture<InventoryList>;
 
   const text = (): string => (fixture.nativeElement as HTMLElement).textContent ?? '';
@@ -49,7 +49,7 @@ describe('InventoryList', () => {
       imports: [InventoryList],
       providers: [
         { provide: InventoryService, useValue: inventory },
-        { provide: Router, useValue: router },
+        provideRouter([]),
         {
           provide: ActivatedRoute,
           useValue: {
@@ -59,6 +59,7 @@ describe('InventoryList', () => {
         },
       ],
     }).compileComponents();
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockImplementation(applyNavigation as never);
     fixture = TestBed.createComponent(InventoryList);
     fixture.detectChanges();
   }
@@ -92,7 +93,6 @@ describe('InventoryList', () => {
         of([createCategory(), createCategory({ id: 'c2', name: 'Granos' })]),
       ),
     };
-    router = { navigate: vi.fn(applyNavigation) };
   });
 
   afterEach(() => vi.useRealTimers());
