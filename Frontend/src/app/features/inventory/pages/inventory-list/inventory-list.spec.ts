@@ -12,6 +12,8 @@ import type { Mock } from 'vitest';
 import { PaginatedResponse } from '../../../../core/models/pagination.model';
 import { Product } from '../../models/product.model';
 import { InventoryService } from '../../services/inventory.service';
+import { INVENTORY_STORAGE } from '../../services/low-stock-threshold.service';
+import { StockSummaryService } from '../../services/stock-summary.service';
 import { createCategory, createProduct } from '../../testing/factories';
 import { InventoryList } from './inventory-list';
 
@@ -23,6 +25,7 @@ function pageOf(data: Product[], total = data.length === 0 ? 0 : 100): Paginated
 describe('InventoryList', () => {
   let params$: BehaviorSubject<ParamMap>;
   let inventory: { list: Mock; listCategories: Mock };
+  let summary: { load: Mock };
   let fixture: ComponentFixture<InventoryList>;
 
   const text = (): string => (fixture.nativeElement as HTMLElement).textContent ?? '';
@@ -50,6 +53,8 @@ describe('InventoryList', () => {
       imports: [InventoryList],
       providers: [
         { provide: InventoryService, useValue: inventory },
+        { provide: StockSummaryService, useValue: summary },
+        { provide: INVENTORY_STORAGE, useValue: null },
         provideRouter([]),
         {
           provide: ActivatedRoute,
@@ -66,6 +71,7 @@ describe('InventoryList', () => {
   }
 
   beforeEach(() => {
+    summary = { load: vi.fn(() => of({ total: 20, ok: 14, low: 4, out: 2 })) };
     inventory = {
       list: vi.fn(() =>
         of(
@@ -300,6 +306,92 @@ describe('InventoryList', () => {
     const calls = inventory.list.mock.calls.length;
     instance()['reload']();
     expect(inventory.list.mock.calls.length).toBe(calls + 1);
+  });
+
+  it('distingue el estado de stock de cada producto con una etiqueta y un color de fila', async () => {
+    inventory.list.mockReturnValue(
+      of(
+        pageOf([
+          createProduct({ id: 'a', name: 'Normal', stock: 50 }),
+          createProduct({ id: 'b', name: 'Bajo', stock: 5 }),
+          createProduct({ id: 'c', name: 'Agotado', stock: 0 }),
+        ]),
+      ),
+    );
+    await create();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const rows = root.querySelectorAll('tr.mat-mdc-row');
+    expect(rows[0].textContent).toContain('Stock normal');
+    expect(rows[1].textContent).toContain('Stock bajo');
+    expect(rows[2].textContent).toContain('Sin stock');
+    expect(rows[0].classList).not.toContain('row--low');
+    expect(rows[1].classList).toContain('row--low');
+    expect(rows[2].classList).toContain('row--out');
+  });
+
+  it('muestra el resumen de stock en la cabecera', async () => {
+    await create();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(text()).toContain('Stock bajo');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.tile__value--low')?.textContent,
+    ).toContain('4');
+  });
+
+  it('los atajos del resumen filtran la tabla por stock bajo o sin stock', async () => {
+    await create({ page: '2' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const [low, out] = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        'button.tile--action',
+      ),
+    );
+    low.click();
+    fixture.detectChanges();
+    expect(params$.value.get('stockStatus')).toBe('low');
+    expect(inventory.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ stockStatus: 'low', page: 1, lowStockThreshold: 10 }),
+    );
+
+    out.click();
+    fixture.detectChanges();
+    expect(params$.value.get('stockStatus')).toBe('out');
+  });
+
+  it('al cambiar el umbral vuelve a consultar con el nuevo valor y refresca el resumen', async () => {
+    await create({ stockStatus: 'low' });
+    await fixture.whenStable();
+    summary.load.mockClear();
+
+    const input = (fixture.nativeElement as HTMLElement).querySelector(
+      '#low-stock-threshold',
+    ) as HTMLInputElement;
+    input.value = '25';
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(inventory.list).toHaveBeenLastCalledWith(
+      expect.objectContaining({ stockStatus: 'low', lowStockThreshold: 25 }),
+    );
+    expect(summary.load).toHaveBeenCalledWith(25);
+  });
+
+  it('refrescar la tabla también refresca el resumen', async () => {
+    await create();
+    await fixture.whenStable();
+    summary.load.mockClear();
+
+    instance()['reload']();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(summary.load).toHaveBeenCalledTimes(1);
   });
 
   it('carga las categorías para el filtro y tolera que fallen', async () => {

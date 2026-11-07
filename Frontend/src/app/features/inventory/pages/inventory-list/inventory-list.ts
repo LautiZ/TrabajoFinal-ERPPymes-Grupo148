@@ -31,6 +31,8 @@ import {
   tap,
 } from 'rxjs';
 import { ProductActions } from '../../components/product-actions/product-actions';
+import { StockBadge } from '../../components/stock-badge/stock-badge';
+import { StockSummary } from '../../components/stock-summary/stock-summary';
 import { EmptyState } from '../../../../shared/components/empty-state/empty-state';
 import { LoadingSpinner } from '../../../../shared/components/loading-spinner/loading-spinner';
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
@@ -43,6 +45,7 @@ import {
   UNIT_SYMBOLS,
 } from '../../models/product.model';
 import { InventoryService } from '../../services/inventory.service';
+import { LowStockThresholdService } from '../../services/low-stock-threshold.service';
 import {
   DEFAULT_LIST_STATE,
   ListState,
@@ -53,7 +56,7 @@ import {
   toQueryParams,
 } from '../../utils/inventory-query';
 import { createSpanishPaginatorIntl } from '../../utils/paginator-intl';
-import { DEFAULT_LOW_STOCK_THRESHOLD } from '../../utils/stock-status';
+import { StockStatus, getStockStatus } from '../../utils/stock-status';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -75,6 +78,8 @@ const SEARCH_DEBOUNCE_MS = 300;
     EmptyState,
     LoadingSpinner,
     ProductActions,
+    StockBadge,
+    StockSummary,
   ],
   providers: [{ provide: MatPaginatorIntl, useFactory: createSpanishPaginatorIntl }],
   selector: 'app-inventory-list',
@@ -84,6 +89,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 })
 export class InventoryList {
   private readonly inventory = inject(InventoryService);
+  private readonly thresholdService = inject(LowStockThresholdService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -108,6 +114,8 @@ export class InventoryList {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly categories = signal<Category[]>([]);
+  /** Cambia para que el resumen de stock se vuelva a consultar. */
+  protected readonly summaryVersion = signal(0);
 
   protected readonly filtersActive = computed(() => hasActiveFilters(this.state()));
 
@@ -197,10 +205,15 @@ export class InventoryList {
 
   /** Umbral de "stock bajo" con el que se consulta al backend. */
   protected lowStockThreshold(): number {
-    return DEFAULT_LOW_STOCK_THRESHOLD;
+    return this.thresholdService.value();
+  }
+
+  protected statusOf(product: Product): StockStatus {
+    return getStockStatus(product.stock, this.thresholdService.value());
   }
 
   protected reload(): void {
+    this.summaryVersion.update((version) => version + 1);
     this.reload$.next();
   }
 
