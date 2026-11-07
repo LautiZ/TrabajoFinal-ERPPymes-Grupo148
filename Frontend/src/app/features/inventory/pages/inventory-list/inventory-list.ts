@@ -30,6 +30,7 @@ import {
   switchMap,
   tap,
 } from 'rxjs';
+import { ProductActions } from '../../components/product-actions/product-actions';
 import { EmptyState } from '../../../../shared/components/empty-state/empty-state';
 import { LoadingSpinner } from '../../../../shared/components/loading-spinner/loading-spinner';
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
@@ -73,6 +74,7 @@ const SEARCH_DEBOUNCE_MS = 300;
     PageHeader,
     EmptyState,
     LoadingSpinner,
+    ProductActions,
   ],
   providers: [{ provide: MatPaginatorIntl, useFactory: createSpanishPaginatorIntl }],
   selector: 'app-inventory-list',
@@ -171,12 +173,22 @@ export class InventoryList {
         if (response) {
           this.products.set(response.data);
           this.total.set(response.meta.total);
+          this.goToLastPageIfEmpty(response.meta.total);
         } else {
           this.products.set([]);
           this.total.set(0);
         }
         this.loading.set(false);
       });
+  }
+
+  /** Si tras eliminar quedó vacía la última página, vuelve a la última que tenga productos. */
+  private goToLastPageIfEmpty(total: number): void {
+    const state = this.state();
+    const lastPage = Math.max(1, Math.ceil(total / state.limit));
+    if (total > 0 && state.page > lastPage) {
+      this.update({ page: lastPage }, false);
+    }
   }
 
   protected unitSymbol(unit: ProductUnit): string {

@@ -33,3 +33,28 @@ export const integerWhenUnit: ValidatorFn = (control: AbstractControl): Validati
 /** Rechaza espacios dentro del valor; los de los bordes se ignoran porque el formulario los recorta. */
 export const noInnerSpaces: ValidatorFn = (control: AbstractControl): ValidationErrors | null =>
   typeof control.value === 'string' && /\s/.test(control.value.trim()) ? { pattern: true } : null;
+
+/** Como `integerWhenUnit`, pero para controles que no tienen un control `unit` hermano. */
+export function integerForUnit(unit: ProductUnit): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const value = control.value;
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    return !allowsDecimals(unit) && !Number.isInteger(Number(value)) ? { integer: true } : null;
+  };
+}
+
+/**
+ * RN-02: un egreso no puede superar el stock disponible. Lee el tipo de movimiento del control
+ * hermano `type`, por lo que hay que revalidar este control cuando el tipo cambie.
+ */
+export function withinStockOnOutcome(stock: number): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const type = control.parent?.get('type')?.value as string | undefined;
+    const value = Number(control.value);
+    return type === 'Outcome' && Number.isFinite(value) && value > stock
+      ? { exceedsStock: { max: stock } }
+      : null;
+  };
+}

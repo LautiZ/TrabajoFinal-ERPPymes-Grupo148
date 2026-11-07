@@ -15,7 +15,8 @@ import { InventoryService } from '../../services/inventory.service';
 import { createCategory, createProduct } from '../../testing/factories';
 import { InventoryList } from './inventory-list';
 
-function pageOf(data: Product[], total = data.length): PaginatedResponse<Product> {
+/** Respuesta con un total grande (hay varias páginas) salvo que la lista sea vacía. */
+function pageOf(data: Product[], total = data.length === 0 ? 0 : 100): PaginatedResponse<Product> {
   return { data, meta: { total, page: 1, limit: 10, totalPages: Math.ceil(total / 10) } };
 }
 
@@ -272,6 +273,33 @@ describe('InventoryList', () => {
     params$.next(convertToParamMap({ page: '1' }));
 
     expect(inventory.list.mock.calls.length).toBe(calls);
+  });
+
+  it('si tras eliminar queda vacía la última página, vuelve a la última que tenga productos', async () => {
+    inventory.list.mockReturnValue(
+      of({ ...pageOf([]), meta: { total: 12, page: 3, limit: 10, totalPages: 2 } }),
+    );
+    await create({ page: '3' });
+
+    expect(params$.value.get('page')).toBe('2');
+  });
+
+  it('con total 0 no intenta cambiar de página', async () => {
+    inventory.list.mockReturnValue(of(pageOf([])));
+    await create({ page: '3' });
+
+    expect(params$.value.get('page')).toBe('3');
+  });
+
+  it('cada fila tiene su menú de acciones y refrescar vuelve a consultar', async () => {
+    await create();
+
+    const menus = (fixture.nativeElement as HTMLElement).querySelectorAll('app-product-actions');
+    expect(menus).toHaveLength(2);
+
+    const calls = inventory.list.mock.calls.length;
+    instance()['reload']();
+    expect(inventory.list.mock.calls.length).toBe(calls + 1);
   });
 
   it('carga las categorías para el filtro y tolera que fallen', async () => {
