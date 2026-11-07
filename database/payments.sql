@@ -13,7 +13,8 @@
 CREATE TYPE "payment_states" AS ENUM (
   'Pending',
   'Paid',
-  'Rejected'
+  'Rejected',
+  'Refunded' -- the sale was cancelled after being paid (RN-11.1)
 );
 
 CREATE TABLE "payments" (
@@ -28,4 +29,5 @@ CREATE TABLE "payments" (
   CONSTRAINT "chk_payments_amount_positive" CHECK (amount > 0)
 );
 
-CREATE INDEX "idx_payments_sale_id" ON "payments" ("sale_id");
+-- Natural key; also serves lookups by sale_id
+CREATE UNIQUE INDEX "uq_payments_sale_id_created_at" ON "payments" ("sale_id", "created_at");

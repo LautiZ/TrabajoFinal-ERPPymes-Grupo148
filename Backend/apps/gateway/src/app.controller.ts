@@ -1,12 +1,16 @@
-import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { AppService, ServicesHealth } from './app.service';
 
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  @Get('health')
+  async health(): Promise<ServicesHealth> {
+    const health = await this.appService.checkServices();
+    if (Object.values(health).includes('down')) {
+      throw new ServiceUnavailableException(health);
+    }
+    return health;
   }
 }
