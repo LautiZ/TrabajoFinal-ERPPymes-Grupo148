@@ -95,6 +95,11 @@ Convenciones:
 - **Cada servicio tiene su propio `PrismaService`** (`src/prisma/`), que extiende el cliente generado desde su schema y se inyecta solo en los repositorios. No se comparte en `libs/` para preservar la independencia entre servicios. Al iniciar ejecuta `SELECT 1`: con `@prisma/adapter-pg`, `$connect()` no abre conexiones, así que sin esa consulta el servicio arrancaría aunque la base no esté disponible.
 - **`.pnpmfile.cjs` quita `prisma` y `typescript` de las peer dependencies de `@prisma/client`.** Son peers opcionales, pero pnpm los vincula porque ambos son devDependencies del proyecto, y ese vínculo queda en el lockfile: sin el hook, `pnpm install --prod` instala el CLI de Prisma (y Studio, PGlite, TypeScript, etc.) en las imágenes de producción. El cliente no los necesita en runtime. Si se modifica este archivo hay que regenerar el lockfile con `pnpm install`.
 - **Las imágenes Docker instalan Prisma solo si el servicio lo usa.** El build arg `USES_PRISMA` (por defecto `true`) se define por servicio en `docker-compose.yml`; el Gateway lo pone en `false` y su imagen no incluye `@prisma/client` ni `@prisma/adapter-pg`.
+- **En Docker, las migraciones las aplica el servicio `migrate`, no cada servicio al arrancar.** Es el stage `migrate` del `Dockerfile`, basado en `deps` porque necesita el CLI de Prisma, que las imágenes de runtime no incluyen. Migrar al arrancar queda descartado: con varias réplicas todas intentarían migrar a la vez, y una migración fallida dejaría al servicio reiniciándose en loop. Detalles:
+  - Los tres `prisma.config.ts` leen `DATABASE_URL`, así que el job recibe `AUTH_DATABASE_URL`, `ERP_DATABASE_URL` y `PAYMENTS_DATABASE_URL`, y cada comando recibe su propio valor. Si falta alguna, el job falla antes de tocar la base.
+  - El stage `migrate` está antes de `runtime` a propósito. Los servicios se construyen sin `target`, así que Docker usa el último stage del archivo.
+  - Corre como root: el CLI de Prisma no arranca si no puede escribir en la carpeta de sus engines, que instaló root. Es un job de corta duración y sin puertos expuestos; las imágenes de los servicios siguen corriendo como `node`.
+- **Desde el host**, para correr un servicio localmente, las migraciones se siguen aplicando con `pnpm prisma:migrate:deploy:<servicio>`.
 
 Scripts (reemplazar `<servicio>` por `auth`, `erp` o `payments`):
 
