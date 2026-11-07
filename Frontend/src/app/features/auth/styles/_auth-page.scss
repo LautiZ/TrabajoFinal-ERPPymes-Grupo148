@@ -1,0 +1,79 @@
+// Estilos compartidos por las pantallas de acceso (login y registro).
+.auth {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+  background:
+    radial-gradient(60rem 30rem at 50% -10%, var(--app-accent-soft), transparent), var(--app-bg);
+}
+
+.auth__card {
+  width: min(100%, 26rem);
+  padding: 2rem;
+  text-align: center;
+
+  h1 {
+    margin: 0.25rem 0 1rem;
+    font: var(--mat-sys-headline-medium);
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.auth__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 0.75rem;
+  border-radius: 0.875rem;
+  color: var(--app-on-accent);
+  background: linear-gradient(135deg, var(--app-accent), var(--app-accent-strong));
+}
+
+.auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: left;
+}
+
+.auth__notice,
+.auth__error {
+  margin-bottom: 1rem !important;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--app-radius-sm);
+  font: var(--mat-sys-body-medium);
+  text-align: left;
+}
+
+.auth__notice {
+  color: var(--app-text);
+  background: var(--app-accent-soft);
+}
+
+.auth__error {
+  color: var(--app-danger);
+  background: var(--app-danger-soft);
+}
+
+.auth__submit {
+  height: 3rem;
+  margin-top: 0.5rem;
+
+  mat-progress-spinner {
+    display: inline-block;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+  }
+}
+
+.auth__alt {
+  margin-top: 1.25rem !important;
+  color: var(--app-text-muted);
+  font: var(--mat-sys-body-medium);
+}
