@@ -5,6 +5,8 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { of } from 'rxjs';
 import { routes as appRoutes } from '../../app.routes';
 import { authGuard, roleGuard } from '../../core/guards/auth.guard';
+import { UserRole } from '../../core/models/auth.model';
+import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../shared/services/notification.service';
 import { INVENTORY_ROUTES } from './inventory.routes';
 import { InventoryService } from './services/inventory.service';
@@ -83,14 +85,24 @@ describe('INVENTORY_ROUTES', () => {
   describe('navegación y guards', () => {
     let harness: RouterTestingHarness;
 
-    async function setup(): Promise<void> {
+    /** `role: null` = sin sesión. */
+    async function setup(role: UserRole | null): Promise<void> {
       TestBed.configureTestingModule({
         providers: [
           provideRouter([
             { path: 'inventory', children: INVENTORY_ROUTES },
             { path: 'dashboard', component: Stub },
+            { path: 'forbidden', component: Stub },
             { path: 'auth/login', component: Stub },
           ]),
+          {
+            provide: AuthService,
+            useValue: {
+              isSessionActive: () => role !== null,
+              hasRole: (...roles: UserRole[]) => role !== null && roles.includes(role),
+              lastEndReason: () => null,
+            },
+          },
           {
             provide: InventoryService,
             useValue: {
@@ -110,13 +122,8 @@ describe('INVENTORY_ROUTES', () => {
 
     const url = (): string => TestBed.inject(Router).url;
 
-    afterEach(() => {
-      localStorage.removeItem('user_role');
-      localStorage.removeItem('is_authenticated');
-    });
-
     it('con sesión, `/inventory` muestra el listado', async () => {
-      await setup();
+      await setup('Employee');
 
       await harness.navigateByUrl('/inventory');
 
@@ -126,43 +133,44 @@ describe('INVENTORY_ROUTES', () => {
       );
     });
 
-    it('sin sesión redirige al login', async () => {
-      localStorage.setItem('is_authenticated', 'false');
-      await setup();
+    it('sin sesión redirige al login recordando a dónde iba', async () => {
+      await setup(null);
 
       await harness.navigateByUrl('/inventory');
 
-      expect(url()).toBe('/auth/login');
+      expect(url()).toBe('/auth/login?returnUrl=%2Finventory');
     });
 
-    it('un rol autorizado accede al alta de producto', async () => {
-      localStorage.setItem('user_role', 'ADMIN');
-      await setup();
+    it('cada rol del sistema accede al alta de producto (RN-16.3)', async () => {
+      for (const role of ['Owner', 'Admin', 'Employee'] as const) {
+        TestBed.resetTestingModule();
+        await setup(role);
 
-      await harness.navigateByUrl('/inventory/new');
+        await harness.navigateByUrl('/inventory/new');
 
-      expect(url()).toBe('/inventory/new');
-      expect((harness.routeNativeElement as HTMLElement).textContent).toContain('Nuevo producto');
+        expect(url()).toBe('/inventory/new');
+        expect((harness.routeNativeElement as HTMLElement).textContent).toContain('Nuevo producto');
+      }
     });
 
-    it('un rol no autorizado no accede al alta ni a la edición: vuelve al panel', async () => {
-      localStorage.setItem('user_role', 'INVITADO');
-      await setup();
+    it('sin sesión tampoco accede al alta ni a la edición', async () => {
+      await setup(null);
 
       await harness.navigateByUrl('/inventory/new');
-      expect(url()).toBe('/dashboard');
+      expect(url()).toContain('/auth/login');
 
       await harness.navigateByUrl('/inventory/p1/edit');
-      expect(url()).toBe('/dashboard');
+      expect(url()).toContain('/auth/login');
     });
 
-    it('un rol no autorizado igual puede ver el listado', async () => {
-      localStorage.setItem('user_role', 'INVITADO');
-      await setup();
+    it('un rol que no está entre los autorizados va a acceso denegado', async () => {
+      await setup('Invitado' as UserRole);
 
-      await harness.navigateByUrl('/inventory');
+      await harness.navigateByUrl('/inventory/new');
+      expect(url()).toBe('/forbidden');
 
-      expect(url()).toBe('/inventory');
+      await harness.navigateByUrl('/inventory/p1/edit');
+      expect(url()).toBe('/forbidden');
     });
   });
 });

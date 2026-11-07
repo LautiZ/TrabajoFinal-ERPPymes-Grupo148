@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, roleGuard } from './core/guards/auth.guard';
+import { authGuard, guestGuard, roleGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -12,12 +12,15 @@ export const routes: Routes = [
     children: [
       {
         path: 'login',
+        canActivate: [guestGuard],
         loadComponent: () => import('./features/auth/pages/login/login').then((m) => m.Login),
       },
     ],
   },
   {
+    // Aplicación autenticada: todo lo que cuelga del shell exige sesión.
     path: '',
+    canActivate: [authGuard],
     loadComponent: () => import('./core/layout/shell/shell').then((m) => m.Shell),
     children: [
       {
@@ -37,9 +40,14 @@ export const routes: Routes = [
       {
         path: 'analytics',
         canActivate: [authGuard, roleGuard],
-        data: { roles: ['ADMIN'] },
+        data: { roles: ['Owner', 'Admin'] },
         loadChildren: () =>
           import('./features/analytics/analytics.routes').then((m) => m.ANALYTICS_ROUTES),
+      },
+      {
+        path: 'forbidden',
+        loadComponent: () =>
+          import('./features/auth/pages/access-denied/access-denied').then((m) => m.AccessDenied),
       },
       {
         path: 'ui-demo',
