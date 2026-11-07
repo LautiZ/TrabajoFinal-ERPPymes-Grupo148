@@ -2,6 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!--
+      Content-Security-Policy (TES-70): reduce la superficie de XSS, ya que el JWT es accesible desde JS.
+      - Scripts solo propios: sin 'unsafe-inline' ni 'unsafe-eval'.
+      - Estilos: 'unsafe-inline' solo para estilos (Angular inyecta los de cada componente) y Google Fonts.
+      - connect-src: el propio origen y el API Gateway. Si cambia la URL del Gateway, actualizarla acá
+        y en nginx/security-headers.conf. Mercado Pago no se lista: el pago es una redirección de página.
+      `frame-ancestors` no funciona en <meta>: lo aplica nginx como cabecera HTTP.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>Frontend</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
