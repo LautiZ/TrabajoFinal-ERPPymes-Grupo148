@@ -13,7 +13,7 @@
     <nav class="nav">
       <p class="app-eyebrow nav__title">Módulos principales</p>
       <ul>
-        @for (item of modules; track item.path) {
+        @for (item of modules(); track item.path) {
         <li>
           <a
             class="nav__link"
@@ -65,15 +65,22 @@
         Nuevo
       </a>
 
-      <!-- TODO(TES-36): mostrar nombre y rol del usuario autenticado. -->
-      <div class="user" aria-label="Usuario">
-        <span class="user__avatar" aria-hidden="true">
-          <mat-icon fontSet="material-symbols-outlined">person</mat-icon>
+      <div class="user">
+        <span class="user__avatar" aria-hidden="true">{{ initials() }}</span>
+        <span class="user__text" [attr.title]="user()?.email">
+          <strong>{{ user()?.name }}</strong>
+          <span class="app-eyebrow">{{ roleLabel() }}</span>
         </span>
-        <span class="user__text">
-          <strong>Usuario</strong>
-          <span class="app-eyebrow">Sesión</span>
-        </span>
+        <button
+          mat-icon-button
+          type="button"
+          class="user__logout"
+          aria-label="Cerrar sesión"
+          [disabled]="loggingOut()"
+          (click)="logout()"
+        >
+          <mat-icon fontSet="material-symbols-outlined">logout</mat-icon>
+        </button>
       </div>
     </header>
 
