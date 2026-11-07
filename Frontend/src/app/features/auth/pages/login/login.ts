@@ -6,7 +6,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ActivatedRoute, ParamMap, Router } from '@angular/router';
+import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
+import { REGISTER_PATH } from '../../../../core/auth-paths';
 import { AuthService } from '../../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../../core/utils/api-error';
 import { safeReturnUrl } from '../../../../core/utils/return-url';
@@ -54,6 +55,7 @@ export function loginErrorMessage(error: unknown): string {
 @Component({
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
@@ -73,6 +75,7 @@ export class Login {
 
   private readonly returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
 
+  protected readonly registerPath = REGISTER_PATH;
   protected readonly notice = loginNotice(this.route.snapshot.queryParamMap);
   protected readonly showPassword = signal(false);
   protected readonly submitting = signal(false);
