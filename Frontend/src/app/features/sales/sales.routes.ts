@@ -1,10 +1,11 @@
 import { CanActivateFn, Routes } from '@angular/router';
+import { authGuard } from '../../core/guards/auth.guard';
 
 /**
- * Guards de acceso al módulo de Ventas.
- * TODO(TES-49): sumar el guard de autenticación/roles cuando el módulo Core y Auth lo exponga.
+ * Guards de acceso al módulo de Ventas: exige sesión. El módulo no restringe por rol: cualquier
+ * usuario autenticado puede operar el punto de venta.
  */
-export const SALES_GUARDS: CanActivateFn[] = [];
+export const SALES_GUARDS: CanActivateFn[] = [authGuard];
 
 /** Rutas del módulo, cargadas con lazy loading bajo `/sales`. */
 export const SALES_ROUTES: Routes = [

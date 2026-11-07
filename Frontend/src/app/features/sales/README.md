@@ -33,6 +33,6 @@ Los microservicios del Gateway todavía son un scaffold, así que estos endpoint
 
 ## Pendientes de integración
 
-- **Guards:** `SALES_GUARDS` en `sales.routes.ts` está vacío; sumar el guard de auth/roles cuando exista (TES-49).
+- **Guards:** `SALES_GUARDS` exige sesión (`authGuard`). El módulo no restringe por rol.
 - **Catálogo:** `CatalogService` es un adaptador de solo lectura propio de Ventas; reemplazarlo por `InventoryService` cuando el módulo de Inventario lo exponga (TES-52).
 - **Roles:** según las reglas de negocio, un `Employee` no accede al Payments MS; el cobro con Mercado Pago requeriría `Owner`/`Admin`.

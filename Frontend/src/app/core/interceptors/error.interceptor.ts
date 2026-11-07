@@ -4,10 +4,9 @@ import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { NotificationService } from '../../shared/services/notification.service';
 import { API_URL } from '../services/api.service';
+import { LOGIN_PATH } from '../auth-paths';
 import { AuthService, isAuthUrl } from '../services/auth.service';
 import { isGatewayUrl } from './auth.interceptor';
-
-export const LOGIN_PATH = '/auth/login';
 
 /**
  * Traduce los errores HTTP del Gateway a mensajes amigables y reacciona a los de acceso:
