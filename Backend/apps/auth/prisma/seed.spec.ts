@@ -1,11 +1,12 @@
 import { Role } from '../src/generated/prisma/client';
 import { verifyPassword } from '../src/security/password';
 import { AuthSeedClient, seedAuth } from './seed';
+import { randomUUID } from 'crypto';
 
 describe('seedAuth', () => {
   const owner = {
     email: 'owner@pyme.test',
-    password: 'S3cure-Passw0rd!',
+    password: randomUUID(),
     name: 'Ana',
   };
 
