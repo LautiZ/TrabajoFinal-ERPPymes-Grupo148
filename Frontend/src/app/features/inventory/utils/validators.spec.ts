@@ -1,6 +1,13 @@
 import { FormControl, FormGroup } from '@angular/forms';
 import { ProductUnit } from '../models/product.model';
-import { integerWhenUnit, maxDecimals, noInnerSpaces, notBlank } from './validators';
+import {
+  integerForUnit,
+  integerWhenUnit,
+  maxDecimals,
+  noInnerSpaces,
+  notBlank,
+  withinStockOnOutcome,
+} from './validators';
 
 describe('notBlank', () => {
   it('rechaza vacío, solo espacios y no-strings', () => {
@@ -68,5 +75,39 @@ describe('noInnerSpaces', () => {
     expect(noInnerSpaces(new FormControl(' YER-001 '))).toBeNull();
     expect(noInnerSpaces(new FormControl('YER-001'))).toBeNull();
     expect(noInnerSpaces(new FormControl(''))).toBeNull();
+  });
+});
+
+describe('integerForUnit', () => {
+  it('exige enteros solo para la unidad Unit', () => {
+    expect(integerForUnit('Unit')(new FormControl(1.5))).toEqual({ integer: true });
+    expect(integerForUnit('Unit')(new FormControl(2))).toBeNull();
+    expect(integerForUnit('Kg')(new FormControl(1.5))).toBeNull();
+    expect(integerForUnit('Unit')(new FormControl(null))).toBeNull();
+  });
+});
+
+describe('withinStockOnOutcome', () => {
+  function control(type: string, quantity: number): FormControl<number> {
+    const quantityControl = new FormControl(quantity, {
+      nonNullable: true,
+      validators: withinStockOnOutcome(10),
+    });
+    new FormGroup({ type: new FormControl(type), quantity: quantityControl });
+    quantityControl.updateValueAndValidity();
+    return quantityControl;
+  }
+
+  it('rechaza un egreso mayor al stock disponible (RN-02)', () => {
+    expect(control('Outcome', 11).errors).toEqual({ exceedsStock: { max: 10 } });
+  });
+
+  it('acepta un egreso igual o menor al stock', () => {
+    expect(control('Outcome', 10).errors).toBeNull();
+    expect(control('Outcome', 1).errors).toBeNull();
+  });
+
+  it('no limita los ingresos', () => {
+    expect(control('Income', 500).errors).toBeNull();
   });
 });
