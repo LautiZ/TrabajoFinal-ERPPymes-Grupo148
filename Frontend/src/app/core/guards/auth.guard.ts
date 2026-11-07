@@ -1,57 +1,53 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateFn, Router, UrlTree } from '@angular/router';
+import { FORBIDDEN_PATH, HOME_PATH, LOGIN_PATH } from '../auth-paths';
+import { UserRole } from '../models/auth.model';
+import { AuthService } from '../services/auth.service';
 
-export type UserRole = 'ADMIN' | 'VENDEDOR' | string;
-
-/**
- * Obtiene el rol del usuario actual desde localStorage ('user_role' o objeto 'user').
- * Mientras TES-49 no esté integrado, devuelve 'ADMIN' por defecto si no hay sesión
- * para permitir el desarrollo local del módulo.
+/*
+ * IMPORTANTE: estos guards son UX, no seguridad. Evitan mostrar pantallas a quien no
+ * corresponde y llevan al usuario al lugar correcto, pero cualquiera puede alterar el código
+ * del navegador. La seguridad real la aplica el Guard JWT del Gateway (TES-33) en cada request.
  */
-export function getCurrentUserRole(): UserRole {
-  if (typeof window === 'undefined') {
-    return 'ADMIN';
-  }
 
-  const directRole = localStorage.getItem('user_role');
-  if (directRole) {
-    return directRole;
+function toLogin(router: Router, returnUrl: string, expired: boolean): UrlTree {
+  const queryParams: Record<string, string> = {};
+  if (returnUrl && returnUrl !== '/') {
+    queryParams['returnUrl'] = returnUrl;
   }
-
-  const rawUser = localStorage.getItem('user');
-  if (rawUser) {
-    try {
-      const parsed = JSON.parse(rawUser) as { role?: string; rol?: string };
-      return parsed.role ?? parsed.rol ?? 'ADMIN';
-    } catch {
-      return 'ADMIN';
-    }
+  if (expired) {
+    queryParams['reason'] = 'expired';
   }
-
-  return 'ADMIN';
+  return router.createUrlTree([LOGIN_PATH], { queryParams });
 }
 
-export const authGuard: CanActivateFn = () => {
-  const router = inject(Router);
-  if (typeof window !== 'undefined' && localStorage.getItem('is_authenticated') === 'false') {
-    return router.createUrlTree(['/auth/login']);
+/** Bloquea las rutas privadas sin sesión válida y manda al login recordando a dónde iba (`returnUrl`). */
+export const authGuard: CanActivateFn = (_route, state) => {
+  const auth = inject(AuthService);
+  if (auth.isSessionActive()) {
+    return true;
   }
-  return true;
+  return toLogin(inject(Router), state.url, auth.lastEndReason() === 'expired');
 };
 
-export const roleGuard: CanActivateFn = (route) => {
+/**
+ * Restringe la ruta a los roles indicados en `data: { roles: [...] }`. Sin sesión va al login;
+ * con sesión pero sin el rol, a la página de acceso denegado. Una ruta sin `roles` solo exige sesión.
+ */
+export const roleGuard: CanActivateFn = (route, state) => {
+  const auth = inject(AuthService);
   const router = inject(Router);
-  const allowedRoles = (route.data?.['roles'] as string[] | undefined) ?? [];
-
-  if (allowedRoles.length === 0) {
-    return true;
+  if (!auth.isSessionActive()) {
+    return toLogin(router, state.url, auth.lastEndReason() === 'expired');
   }
 
-  const userRole = getCurrentUserRole();
-  if (allowedRoles.includes(userRole)) {
-    return true;
-  }
+  const allowed = (route.data['roles'] as readonly UserRole[] | undefined) ?? [];
+  return allowed.length === 0 || auth.hasRole(...allowed)
+    ? true
+    : router.createUrlTree([FORBIDDEN_PATH]);
+};
 
-  // Si un VENDEDOR intenta entrar por URL a /analytics, redirige a /dashboard
-  return router.createUrlTree(['/dashboard']);
+/** Evita que un usuario con sesión vuelva a las pantallas de login o registro. */
+export const guestGuard: CanActivateFn = () => {
+  return inject(AuthService).isSessionActive() ? inject(Router).createUrlTree([HOME_PATH]) : true;
 };

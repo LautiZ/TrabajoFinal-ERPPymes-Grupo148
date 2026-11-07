@@ -1,0 +1,121 @@
+<main class="auth">
+  <section class="auth__card app-card" aria-labelledby="register-title">
+    <span class="auth__mark" aria-hidden="true">
+      <mat-icon fontSet="material-symbols-outlined">hub</mat-icon>
+    </span>
+    <p class="app-eyebrow">ERP Pymes</p>
+    <h1 id="register-title">Crear cuenta</h1>
+    <p class="auth__intro">
+      El registro público es solo para crear la cuenta del propietario. Si ya existe, pedile a un
+      administrador que cree la tuya.
+    </p>
+
+    @if (errorMessage(); as message) {
+    <p class="auth__error" role="alert">{{ message }}</p>
+    }
+
+    <form class="auth__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <mat-form-field appearance="outline">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="name" autocomplete="given-name" required />
+        @if (form.controls.name.hasError('required')) {
+        <mat-error>El nombre es obligatorio.</mat-error>
+        } @else if (form.controls.name.hasError('maxlength')) {
+        <mat-error>Máximo 100 caracteres.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Apellido (opcional)</mat-label>
+        <input matInput formControlName="surname" autocomplete="family-name" />
+        @if (form.controls.surname.hasError('maxlength')) {
+        <mat-error>Máximo 100 caracteres.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input
+          matInput
+          type="email"
+          formControlName="email"
+          autocomplete="username"
+          inputmode="email"
+          required
+        />
+        @if (form.controls.email.hasError('required')) {
+        <mat-error>El email es obligatorio.</mat-error>
+        } @else if (form.controls.email.hasError('email')) {
+        <mat-error>Ingresá un email válido.</mat-error>
+        } @else if (form.controls.email.hasError('maxlength')) {
+        <mat-error>Máximo 254 caracteres.</mat-error>
+        } @else if (form.controls.email.hasError('duplicate')) {
+        <mat-error>Ya existe un usuario con ese email.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Contraseña</mat-label>
+        <input
+          matInput
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="password"
+          autocomplete="new-password"
+          required
+        />
+        <button
+          mat-icon-button
+          matSuffix
+          type="button"
+          [attr.aria-label]="showPassword() ? 'Ocultar contraseñas' : 'Mostrar contraseñas'"
+          [attr.aria-pressed]="showPassword()"
+          (click)="togglePassword()"
+        >
+          <mat-icon fontSet="material-symbols-outlined"
+            >{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon
+          >
+        </button>
+        <mat-hint>{{ passwordMin }} a {{ passwordMax }} caracteres, con letras y números.</mat-hint>
+        @if (form.controls.password.hasError('required')) {
+        <mat-error>La contraseña es obligatoria.</mat-error>
+        } @else if (form.controls.password.hasError('minLength')) {
+        <mat-error>Debe tener al menos {{ passwordMin }} caracteres.</mat-error>
+        } @else if (form.controls.password.hasError('maxLength')) {
+        <mat-error>Debe tener como máximo {{ passwordMax }} caracteres.</mat-error>
+        } @else if (form.controls.password.hasError('complexity')) {
+        <mat-error>Debe incluir al menos una letra y un número.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Confirmar contraseña</mat-label>
+        <input
+          matInput
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="confirmPassword"
+          autocomplete="new-password"
+          required
+        />
+        @if (form.controls.confirmPassword.hasError('required')) {
+        <mat-error>Confirmá la contraseña.</mat-error>
+        } @else if (form.controls.confirmPassword.hasError('mismatch')) {
+        <mat-error>Las contraseñas no coinciden.</mat-error>
+        }
+      </mat-form-field>
+
+      <button
+        mat-flat-button
+        type="submit"
+        class="auth__submit"
+        [disabled]="submitting()"
+        [attr.aria-busy]="submitting()"
+      >
+        @if (submitting()) {
+        <mat-progress-spinner mode="indeterminate" diameter="20" />
+        Creando cuenta... } @else { Crear cuenta }
+      </button>
+    </form>
+
+    <p class="auth__alt">¿Ya tenés cuenta? <a [routerLink]="loginPath">Iniciar sesión</a></p>
+  </section>
+</main>

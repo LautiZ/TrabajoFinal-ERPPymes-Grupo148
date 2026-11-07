@@ -21,6 +21,14 @@ export class NotificationService {
     });
   }
 
+  /** Aviso que requiere atención pero no es un error (p. ej. la sesión está por vencer). */
+  warn(message: string, durationMs = 10000): void {
+    this.snackBar.open(message, 'Cerrar', {
+      duration: durationMs,
+      panelClass: ['snackbar-warning'],
+    });
+  }
+
   info(message: string): void {
     this.snackBar.open(message, 'Cerrar', {
       duration: 3000,

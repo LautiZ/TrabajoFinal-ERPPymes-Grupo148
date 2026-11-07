@@ -1,6 +1,7 @@
+import { UserRole } from '../../../core/models/auth.model';
+
 /**
- * Roles que pueden crear y editar productos. Según las reglas de negocio, dentro del ERP MS
- * todos los roles autenticados (Owner, Admin y Employee) operan el catálogo; `VENDEDOR` es el
- * nombre con el que el guard de rutas actual identifica al empleado.
+ * Roles que pueden crear y editar productos. Según las reglas de negocio (RN-16.3), dentro del
+ * ERP MS todos los roles autenticados operan el catálogo sin restricciones.
  */
-export const INVENTORY_WRITE_ROLES: readonly string[] = ['OWNER', 'ADMIN', 'EMPLOYEE', 'VENDEDOR'];
+export const INVENTORY_WRITE_ROLES: readonly UserRole[] = ['Owner', 'Admin', 'Employee'];
