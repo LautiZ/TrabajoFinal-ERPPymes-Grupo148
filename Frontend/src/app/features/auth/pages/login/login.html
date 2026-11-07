@@ -5,6 +5,68 @@
     </span>
     <p class="app-eyebrow">ERP Pymes</p>
     <h1 id="login-title">Iniciar sesión</h1>
-    <p class="auth__hint">El formulario de acceso está en desarrollo.</p>
+
+    @if (notice) {
+    <p class="auth__notice" role="status">{{ notice }}</p>
+    } @if (errorMessage(); as message) {
+    <p class="auth__error" role="alert">{{ message }}</p>
+    }
+
+    <form class="auth__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input
+          matInput
+          type="email"
+          formControlName="email"
+          autocomplete="username"
+          inputmode="email"
+          required
+        />
+        @if (form.controls.email.hasError('required')) {
+        <mat-error>El email es obligatorio.</mat-error>
+        } @else if (form.controls.email.hasError('email')) {
+        <mat-error>Ingresá un email válido.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Contraseña</mat-label>
+        <input
+          matInput
+          [type]="showPassword() ? 'text' : 'password'"
+          formControlName="password"
+          autocomplete="current-password"
+          required
+        />
+        <button
+          mat-icon-button
+          matSuffix
+          type="button"
+          [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+          [attr.aria-pressed]="showPassword()"
+          (click)="togglePassword()"
+        >
+          <mat-icon fontSet="material-symbols-outlined"
+            >{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon
+          >
+        </button>
+        @if (form.controls.password.hasError('required')) {
+        <mat-error>La contraseña es obligatoria.</mat-error>
+        }
+      </mat-form-field>
+
+      <button
+        mat-flat-button
+        type="submit"
+        class="auth__submit"
+        [disabled]="submitting()"
+        [attr.aria-busy]="submitting()"
+      >
+        @if (submitting()) {
+        <mat-progress-spinner mode="indeterminate" diameter="20" />
+        Ingresando... } @else { Ingresar }
+      </button>
+    </form>
   </section>
 </main>
