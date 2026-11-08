@@ -7,6 +7,7 @@ interface EnvVars {
   HOST: string;
   PORT: number;
   DATABASE_URL: string;
+  JWT_EXPIRES_IN: number;
 }
 
 const schema = Joi.object<EnvVars>({
@@ -14,6 +15,8 @@ const schema = Joi.object<EnvVars>({
   HOST: Joi.string().default('0.0.0.0'),
   PORT: Joi.number().required(),
   DATABASE_URL: Joi.string().required(),
+  // Access token lifetime in seconds; sessions.expires_at must match the token exp
+  JWT_EXPIRES_IN: Joi.number().integer().positive().default(1800),
 }).unknown(true);
 
 export const envs = validateEnvs(schema, process.env);
