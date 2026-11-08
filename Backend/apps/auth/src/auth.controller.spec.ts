@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UsersRepository } from './users/users.repository';
+import { JwtService } from '@nestjs/jwt';
+import { SessionsRepository } from './sessions/sessions.repository';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -13,6 +15,8 @@ describe('AuthController', () => {
       providers: [
         AuthService,
         { provide: UsersRepository, useValue: { count: jest.fn() } },
+        { provide: SessionsRepository, useValue: {} },
+        { provide: JwtService, useValue: {} },
       ],
     }).compile();
 
