@@ -8,6 +8,7 @@ interface EnvVars {
   PORT: number;
   DATABASE_URL: string;
   JWT_EXPIRES_IN: number;
+  JWT_SECRET: string;
 }
 
 const schema = Joi.object<EnvVars>({
@@ -17,6 +18,8 @@ const schema = Joi.object<EnvVars>({
   DATABASE_URL: Joi.string().required(),
   // Access token lifetime in seconds; sessions.expires_at must match the token exp
   JWT_EXPIRES_IN: Joi.number().integer().positive().default(1800),
+  // HMAC key used to sign access tokens; long and random, never committed
+  JWT_SECRET: Joi.string().min(32).required(),
 }).unknown(true);
 
 export const envs = validateEnvs(schema, process.env);
