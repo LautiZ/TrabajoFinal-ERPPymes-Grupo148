@@ -6,11 +6,12 @@ import { JwtService } from '@nestjs/jwt';
 import { SessionsRepository } from './sessions/sessions.repository';
 
 describe('AuthController', () => {
+  let app: TestingModule;
   let authController: AuthController;
   let usersRepository: UsersRepository;
 
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
+    app = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
         AuthService,
@@ -28,6 +29,19 @@ describe('AuthController', () => {
     it('should return the count of users', async () => {
       jest.spyOn(usersRepository, 'count').mockResolvedValue(5);
       expect(await authController.countUsers()).toBe(5);
+    });
+  });
+
+  describe('login', () => {
+    it('delegates to AuthService.login', async () => {
+      const dto = { email: 'owner@pyme.test', password: 'secret' };
+      const response = { accessToken: 'jwt', user: {} } as never;
+      const spy = jest
+        .spyOn(app.get(AuthService), 'login')
+        .mockResolvedValue(response);
+
+      expect(await authController.login(dto)).toBe(response);
+      expect(spy).toHaveBeenCalledWith(dto);
     });
   });
 });
