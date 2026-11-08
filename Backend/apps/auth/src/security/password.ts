@@ -12,18 +12,25 @@ export function verifyPassword(hash: string, plain: string): Promise<boolean> {
   return argon2.verify(hash, plain);
 }
 
-// Hash of a random value nobody knows, computed once at startup. When the
+// Hash of a random value nobody knows. When the
 // email does not exist we still verify against it, so a missing user takes
 // as long as a wrong password and response time does not reveal valid emails.
-const dummyHash = hashPassword(randomUUID());
+// Computed on first use, not on import (seed and tests never pay for it)
+let dummyHash: Promise<string> | undefined;
+const getDummyHash = () => (dummyHash ??= hashPassword(randomUUID()));
 
 export async function verifyPasswordOrDummy(
   hash: string | null,
   plain: string,
 ): Promise<boolean> {
-  if (hash === null) {
-    await argon2.verify(await dummyHash, plain);
+  try {
+    if (hash === null) {
+      await argon2.verify(await getDummyHash(), plain);
+      return false;
+    }
+    return await argon2.verify(hash, plain);
+  } catch {
+    // A malformed stored hash must look like a wrong password, not a 500
     return false;
   }
-  return argon2.verify(hash, plain);
 }
