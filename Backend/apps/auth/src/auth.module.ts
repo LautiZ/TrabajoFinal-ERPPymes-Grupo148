@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { envs } from './config/envs';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersRepository } from './users/users.repository';
+import { SessionsRepository } from './sessions/sessions.repository';
 
 @Module({
   imports: [
@@ -16,6 +17,6 @@ import { UsersRepository } from './users/users.repository';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, UsersRepository],
+  providers: [AuthService, UsersRepository, SessionsRepository],
 })
 export class AuthModule {}

@@ -8,4 +8,8 @@ export class UsersRepository {
   count(): Promise<number> {
     return this.prisma.user.count();
   }
+
+  findByEmail(email: string) {
+    return this.prisma.user.findUnique({ where: { email } });
+  }
 }
