@@ -32,8 +32,9 @@ const authSchema = Joi.object<AuthSeedEnv>({
   // tlds disabled so local domains like owner@pyme.test are accepted
   OWNER_EMAIL: Joi.string()
     .email({ tlds: { allow: false } })
+    .lowercase()
     .required(),
-  OWNER_PASSWORD: Joi.string().min(12).required(),
+  OWNER_PASSWORD: Joi.string().min(12).max(128).required(),
   OWNER_NAME: Joi.string().required(),
   OWNER_SURNAME: Joi.string().optional(),
 });
