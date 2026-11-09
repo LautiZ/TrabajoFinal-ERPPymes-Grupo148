@@ -7,6 +7,8 @@ export const PAYMENTS_SERVICE = 'PAYMENTS_SERVICE';
 export const AUTH_PATTERNS = {
   COUNT_USERS: 'auth.users.count',
   LOGIN: 'auth.login',
+  VALIDATE_TOKEN: 'auth.token.validate',
+  LOGOUT: 'auth.logout',
 } as const;
 
 export const ERP_PATTERNS = {
