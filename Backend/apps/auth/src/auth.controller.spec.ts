@@ -44,4 +44,27 @@ describe('AuthController', () => {
       expect(spy).toHaveBeenCalledWith(dto);
     });
   });
+
+  describe('validateToken', () => {
+    it('delegates to AuthService.validateToken', async () => {
+      const user = { userId: 'user-1', role: 'Owner', jti: 'session-1' };
+      const spy = jest
+        .spyOn(app.get(AuthService), 'validateToken')
+        .mockResolvedValue(user);
+
+      expect(await authController.validateToken({ token: 'a.b.c' })).toBe(user);
+      expect(spy).toHaveBeenCalledWith({ token: 'a.b.c' });
+    });
+  });
+
+  describe('logout', () => {
+    it('delegates to AuthService.logout', async () => {
+      const spy = jest
+        .spyOn(app.get(AuthService), 'logout')
+        .mockResolvedValue(undefined);
+
+      await authController.logout({ jti: 'session-1' });
+      expect(spy).toHaveBeenCalledWith({ jti: 'session-1' });
+    });
+  });
 });
