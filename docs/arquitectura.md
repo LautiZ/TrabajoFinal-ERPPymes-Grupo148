@@ -34,7 +34,7 @@ flowchart TD
 | Comunicación interna | TCP (`@nestjs/microservices`) | Aísla los microservicios y reduce la superficie de exposición: solo el Gateway habla HTTP hacia afuera. |
 | Base de datos | PostgreSQL | Priorizado sobre MySQL por su compatibilidad con las herramientas del ecosistema, tipos enumerados nativos y restricciones `CHECK` completas. |
 | ORM | Prisma 7 | Integración con NestJS, tipado generado a partir del esquema, migraciones versionadas y experiencia previa del equipo. |
-| Autenticación | Usuario y contraseña + JWT | Sesiones sin estado: el Gateway valida el token sin consultar al Auth MS en cada petición. |
+| Autenticación | Usuario y contraseña + JWT ligado a una sesión | El Auth MS valida cada token (firma, vencimiento y sesión activa) y el Gateway le delega esa validación en cada petición. Permite revocar sesiones (logout, desactivación de usuarios) antes de que el token venza. |
 | Pagos | SDK oficial de Mercado Pago para Node.js | Evita implementar a mano las llamadas HTTP a la API; el backend se autentica con el Access Token privado de la aplicación. |
 | Frontend | Angular 22 | Framework estructurado cuya organización modular es muy similar a la de NestJS, lo que acelera el desarrollo del equipo. |
 | Infraestructura | Docker | Red privada para los microservicios; solo el Gateway expone un puerto al exterior (RNF-02). |
@@ -47,8 +47,8 @@ flowchart TD
 
 | Servicio | Responsabilidad | Expuesto |
 |---|---|---|
-| **API Gateway** | Recibe las peticiones HTTP del frontend, valida el JWT y las enruta al microservicio correspondiente. Recibe también el webhook de Mercado Pago. | Sí (HTTP) |
-| **Auth MS** | Autenticación, emisión de JWT, gestión de usuarios y roles. | No (TCP) |
+| **API Gateway** | Recibe las peticiones HTTP del frontend, delega la validación del JWT al Auth MS y las enruta al microservicio correspondiente. Recibe también el webhook de Mercado Pago. | Sí (HTTP) |
+| **Auth MS** | Autenticación, emisión y validación de JWT, gestión de sesiones, usuarios y roles. Es el único servicio que conoce la clave de firma. | No (TCP) |
 | **ERP MS** | Núcleo del sistema: catálogo, movimientos de stock y ventas (POS). | No (TCP) |
 | **Payments MS** | Procesamiento y seguimiento de pagos con Mercado Pago. | No (TCP) |
 
@@ -71,7 +71,7 @@ Así ningún servicio puede leer ni modificar los datos de otro sin pasar por su
 
 ### 3.4 Autenticación
 
-El registro y el inicio de sesión usan autenticación tradicional con usuario y contraseña; las contraseñas se almacenan hasheadas (RNF-06). Las sesiones se manejan con JWT: el Auth MS emite el token y el Gateway lo valida en cada petición antes de enrutarla.
+El inicio de sesión usa autenticación tradicional con usuario y contraseña; las contraseñas se almacenan hasheadas con argon2id (RNF-06). Cada inicio de sesión crea una sesión en la base de datos y emite un JWT que la referencia. En cada petición, el Gateway envía el token al Auth MS, que verifica la firma, el vencimiento y que la sesión siga activa antes de que la petición se enrute.
 
 ### 3.5 Pasarela de pagos
 
