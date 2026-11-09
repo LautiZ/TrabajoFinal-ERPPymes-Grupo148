@@ -1,11 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RpcException } from '@nestjs/microservices';
-import { LoginDto } from '@app/contracts';
+import {
+  AuthUser,
+  LoginDto,
+  LogoutDto,
+  ValidateTokenDto,
+} from '@app/contracts';
 import { envs } from './config/envs';
 import { verifyPasswordOrDummy } from './security/password';
 import { SessionsRepository } from './sessions/sessions.repository';
 import { UsersRepository } from './users/users.repository';
+
+const unauthorized = (message = 'Unauthorized') =>
+  new RpcException({ status: 401, message });
 
 @Injectable()
 export class AuthService {
@@ -30,7 +38,7 @@ export class AuthService {
     // One generic error for unknown email, wrong password and inactive user,
     // so the response never reveals which accounts exist
     if (!user || !valid || !user.active) {
-      throw new RpcException({ status: 401, message: 'Invalid credentials' });
+      throw unauthorized('Invalid credentials');
     }
 
     // Computed once: the session expiry and the token exp are the same instant
@@ -57,5 +65,42 @@ export class AuthService {
         role: user.role,
       },
     };
+  }
+
+  async validateToken({ token }: ValidateTokenDto): Promise<AuthUser> {
+    let jti: unknown;
+    try {
+      // Signature + exp; pinning the algorithm blocks alg-swap attacks
+      ({ jti } = await this.jwtService.verifyAsync<{ jti?: unknown }>(token, {
+        algorithms: ['HS256'],
+      }));
+    } catch {
+      throw unauthorized();
+    }
+
+    // Prisma treats undefined in a where as "no filter": never query without a jti
+    if (typeof jti !== 'string') {
+      throw unauthorized();
+    }
+
+    const session = await this.sessionsRepository.findActive(jti);
+    if (!session) {
+      throw unauthorized();
+    }
+
+    // Role from the DB, so role changes and deactivations apply immediately
+    return {
+      userId: session.user.id,
+      role: session.user.role,
+      jti: session.id,
+    };
+  }
+
+  async logout({ jti }: LogoutDto): Promise<void> {
+    await this.sessionsRepository.revoke(jti);
+  }
+
+  async logoutAll(userId: string): Promise<number> {
+    return this.sessionsRepository.revokeAllForUser(userId);
   }
 }

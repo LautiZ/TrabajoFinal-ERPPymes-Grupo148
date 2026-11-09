@@ -101,3 +101,111 @@ describe('AuthService.login', () => {
     });
   });
 });
+
+describe('AuthService sessions', () => {
+  let service: AuthService;
+  const sessions = {
+    findActive: jest.fn(),
+    revoke: jest.fn(),
+    revokeAllForUser: jest.fn(),
+  };
+  const jwt = { verifyAsync: jest.fn() };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        { provide: UsersRepository, useValue: {} },
+        { provide: SessionsRepository, useValue: sessions },
+        { provide: JwtService, useValue: jwt },
+      ],
+    }).compile();
+    service = module.get(AuthService);
+  });
+
+  describe('validateToken', () => {
+    const dto = { token: 'a.b.c' };
+
+    it('rejects a token that fails verification without querying the DB', async () => {
+      jwt.verifyAsync.mockRejectedValue(new Error('jwt expired'));
+
+      await expect(service.validateToken(dto)).rejects.toBeInstanceOf(
+        RpcException,
+      );
+      expect(sessions.findActive).not.toHaveBeenCalled();
+    });
+
+    it('only accepts HS256', async () => {
+      jwt.verifyAsync.mockRejectedValue(new Error('invalid algorithm'));
+
+      await expect(service.validateToken(dto)).rejects.toBeInstanceOf(
+        RpcException,
+      );
+      expect(jwt.verifyAsync).toHaveBeenCalledWith('a.b.c', {
+        algorithms: ['HS256'],
+      });
+    });
+
+    it('rejects a token without jti instead of querying with undefined', async () => {
+      jwt.verifyAsync.mockResolvedValue({ sub: 'user-1', role: 'Owner' });
+
+      await expect(service.validateToken(dto)).rejects.toBeInstanceOf(
+        RpcException,
+      );
+      expect(sessions.findActive).not.toHaveBeenCalled();
+    });
+
+    it('rejects a revoked, expired or deactivated session', async () => {
+      jwt.verifyAsync.mockResolvedValue({
+        sub: 'user-1',
+        role: 'Owner',
+        jti: 'session-1',
+      });
+      sessions.findActive.mockResolvedValue(null);
+
+      await expect(service.validateToken(dto)).rejects.toBeInstanceOf(
+        RpcException,
+      );
+    });
+
+    it('returns the role from the DB, not from the token', async () => {
+      jwt.verifyAsync.mockResolvedValue({
+        sub: 'user-1',
+        role: 'Admin',
+        jti: 'session-1',
+      });
+      sessions.findActive.mockResolvedValue({
+        id: 'session-1',
+        user: { id: 'user-1', role: 'Employee' },
+      });
+
+      await expect(service.validateToken(dto)).resolves.toEqual({
+        userId: 'user-1',
+        role: 'Employee',
+        jti: 'session-1',
+      });
+      expect(sessions.findActive).toHaveBeenCalledWith('session-1');
+    });
+  });
+
+  describe('logout', () => {
+    it('revokes the session and is idempotent', async () => {
+      sessions.revoke.mockResolvedValue(0); // already revoked
+
+      await expect(
+        service.logout({ jti: 'session-1' }),
+      ).resolves.toBeUndefined();
+      expect(sessions.revoke).toHaveBeenCalledWith('session-1');
+    });
+  });
+
+  describe('logoutAll', () => {
+    it('revokes every active session of the user and returns how many', async () => {
+      sessions.revokeAllForUser.mockResolvedValue(3);
+
+      await expect(service.logoutAll('user-1')).resolves.toBe(3);
+      expect(sessions.revokeAllForUser).toHaveBeenCalledWith('user-1');
+    });
+  });
+});
