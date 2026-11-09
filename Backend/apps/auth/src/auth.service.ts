@@ -101,7 +101,6 @@ export class AuthService {
   }
 
   async logoutAll(userId: string): Promise<number> {
-    const { count } = await this.sessionsRepository.revokeAllForUser(userId);
-    return count;
+    return this.sessionsRepository.revokeAllForUser(userId);
   }
 }

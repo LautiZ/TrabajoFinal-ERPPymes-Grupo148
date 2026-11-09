@@ -23,21 +23,21 @@ export class SessionsRepository {
     });
   }
 
-  // updateMany instead of update: no error if the session is missing or
-  // already revoked, which makes logout idempotent and keeps the first
-  // revocation timestamp
-  revoke(id: string) {
-    return this.prisma.session.updateMany({
-      where: { id, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+  // Raw SQL so revoked_at uses the DB clock, the same one that set
+  // created_at; an app clock behind the DB would violate the CHECK.
+  // Idempotent: already revoked rows are not touched.
+  async revoke(id: string): Promise<number> {
+    return this.prisma.$executeRaw`
+      UPDATE auth.sessions SET revoked_at = now()
+      WHERE id = ${id}::uuid AND revoked_at IS NULL`;
   }
 
   // Filters by (user_id, expires_at), which matches the existing index
-  revokeAllForUser(userId: string) {
-    return this.prisma.session.updateMany({
-      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
-      data: { revokedAt: new Date() },
-    });
+  async revokeAllForUser(userId: string): Promise<number> {
+    return this.prisma.$executeRaw`
+      UPDATE auth.sessions SET revoked_at = now()
+      WHERE user_id = ${userId}::uuid
+        AND revoked_at IS NULL
+        AND expires_at > now()`;
   }
 }

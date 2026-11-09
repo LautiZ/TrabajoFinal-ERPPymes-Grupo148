@@ -191,7 +191,7 @@ describe('AuthService sessions', () => {
 
   describe('logout', () => {
     it('revokes the session and is idempotent', async () => {
-      sessions.revoke.mockResolvedValue({ count: 0 }); // already revoked
+      sessions.revoke.mockResolvedValue(0); // already revoked
 
       await expect(
         service.logout({ jti: 'session-1' }),
@@ -202,7 +202,7 @@ describe('AuthService sessions', () => {
 
   describe('logoutAll', () => {
     it('revokes every active session of the user and returns how many', async () => {
-      sessions.revokeAllForUser.mockResolvedValue({ count: 3 });
+      sessions.revokeAllForUser.mockResolvedValue(3);
 
       await expect(service.logoutAll('user-1')).resolves.toBe(3);
       expect(sessions.revokeAllForUser).toHaveBeenCalledWith('user-1');
