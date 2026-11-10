@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
+import { TCP_TIMEOUT_MS } from './config/tcp';
 import {
   AUTH_PATTERNS,
   AUTH_SERVICE,
@@ -17,9 +18,6 @@ export interface ServicesHealth {
   erp: ServiceStatus;
   payments: ServiceStatus;
 }
-
-// No retries on purpose: resending a non-idempotent message could duplicate data
-const TCP_TIMEOUT_MS = 5000;
 
 @Injectable()
 export class AppService {
