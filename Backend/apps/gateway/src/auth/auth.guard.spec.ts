@@ -3,6 +3,7 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { ClientProxy } from '@nestjs/microservices';
 import { NEVER, of, throwError } from 'rxjs';
 import { AUTH_PATTERNS, AuthUser } from '@app/contracts';
@@ -14,13 +15,19 @@ const contextWith = (headers: Record<string, string>) => {
   const request = { headers } as AuthenticatedRequest;
   const context = {
     switchToHttp: () => ({ getRequest: () => request }),
+    getHandler: () => undefined,
+    getClass: () => undefined,
   } as unknown as ExecutionContext;
   return { request, context };
 };
 
 describe('AuthGuard', () => {
   const authClient = { send: jest.fn() };
-  const guard = new AuthGuard(authClient as unknown as ClientProxy);
+  const reflector = { getAllAndOverride: jest.fn() };
+  const guard = new AuthGuard(
+    authClient as unknown as ClientProxy,
+    reflector as unknown as Reflector,
+  );
 
   beforeEach(() => jest.resetAllMocks());
 
@@ -86,5 +93,13 @@ describe('AuthGuard', () => {
     await jest.advanceTimersByTimeAsync(5000);
     await assertion;
     jest.useRealTimers();
+  });
+
+  it('should let a @Public route through without token or TCP call', async () => {
+    reflector.getAllAndOverride.mockReturnValue(true);
+    const { context } = contextWith({});
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(authClient.send).not.toHaveBeenCalled();
   });
 });
