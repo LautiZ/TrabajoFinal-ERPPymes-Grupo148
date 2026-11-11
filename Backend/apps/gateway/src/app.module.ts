@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AUTH_SERVICE, ERP_SERVICE, PAYMENTS_SERVICE } from '@app/contracts';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthGuard } from './auth/auth.guard';
 import { envs } from './config/envs';
 
 @Module({
@@ -26,6 +28,6 @@ import { envs } from './config/envs';
     ]),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}
