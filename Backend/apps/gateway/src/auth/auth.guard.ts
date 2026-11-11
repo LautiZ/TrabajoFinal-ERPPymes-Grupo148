@@ -6,11 +6,13 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
 import type { Request } from 'express';
 import { AUTH_PATTERNS, AUTH_SERVICE, AuthUser } from '@app/contracts';
 import { TCP_TIMEOUT_MS } from '../config/tcp';
+import { IS_PUBLIC_KEY } from './public.decorator';
 
 export type AuthenticatedRequest = Request & { user?: AuthUser };
 
@@ -24,9 +26,19 @@ const isRejectedByAuth = (err: unknown): boolean =>
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(@Inject(AUTH_SERVICE) private readonly authClient: ClientProxy) {}
+  constructor(
+    @Inject(AUTH_SERVICE) private readonly authClient: ClientProxy,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Handler metadata wins over class metadata
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const token = this.extractBearer(request);
     if (!token) throw new UnauthorizedException();
