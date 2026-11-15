@@ -6,6 +6,8 @@ import { envs } from './config/envs';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersRepository } from './users/users.repository';
 import { SessionsRepository } from './sessions/sessions.repository';
+import { UsersService } from './users/users.service';
+import { UsersController } from './users/users.controller';
 
 @Module({
   imports: [
@@ -16,7 +18,7 @@ import { SessionsRepository } from './sessions/sessions.repository';
       signOptions: { algorithm: 'HS256' },
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, UsersRepository, SessionsRepository],
+  controllers: [AuthController, UsersController],
+  providers: [AuthService, UsersRepository, SessionsRepository, UsersService],
 })
 export class AuthModule {}
