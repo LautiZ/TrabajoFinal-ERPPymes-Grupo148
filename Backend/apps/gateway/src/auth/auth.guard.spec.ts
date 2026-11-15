@@ -9,7 +9,7 @@ import { NEVER, of, throwError } from 'rxjs';
 import { AUTH_PATTERNS, AuthUser } from '@app/contracts';
 import { AuthGuard, AuthenticatedRequest } from './auth.guard';
 
-const user: AuthUser = { userId: 'u-1', role: 'ADMIN', jti: 'j-1' };
+const user: AuthUser = { userId: 'u-1', role: 'Admin', jti: 'j-1' };
 
 const contextWith = (headers: Record<string, string>) => {
   const request = { headers } as AuthenticatedRequest;

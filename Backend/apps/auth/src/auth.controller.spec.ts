@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { UsersRepository } from './users/users.repository';
 import { JwtService } from '@nestjs/jwt';
 import { SessionsRepository } from './sessions/sessions.repository';
+import { AuthUser } from '@app/contracts';
 
 describe('AuthController', () => {
   let app: TestingModule;
@@ -47,7 +48,11 @@ describe('AuthController', () => {
 
   describe('validateToken', () => {
     it('delegates to AuthService.validateToken', async () => {
-      const user = { userId: 'user-1', role: 'Owner', jti: 'session-1' };
+      const user: AuthUser = {
+        userId: 'user-1',
+        role: 'Owner',
+        jti: 'session-1',
+      };
       const spy = jest
         .spyOn(app.get(AuthService), 'validateToken')
         .mockResolvedValue(user);
