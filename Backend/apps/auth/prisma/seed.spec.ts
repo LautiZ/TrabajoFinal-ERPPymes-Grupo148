@@ -24,7 +24,9 @@ describe('seedAuth', () => {
     const id = await seedAuth(client, owner);
 
     expect(id).toBe('new-owner-id');
-    const { data } = user.create.mock.calls[0][0];
+    const { data } = user.create.mock.calls[0][0] as {
+      data: { role: string; email: string; passwordHash: string };
+    };
     expect(data.role).toBe(Role.Owner);
     expect(data.email).toBe(owner.email);
     expect(data.passwordHash).not.toBe(owner.password);
