@@ -9,3 +9,4 @@ export * from './rpc-validation.pipe';
 export * from './dtos/validate-token.dto';
 export * from './dtos/logout.dto';
 export * from './auth-user';
+export * from './roles';

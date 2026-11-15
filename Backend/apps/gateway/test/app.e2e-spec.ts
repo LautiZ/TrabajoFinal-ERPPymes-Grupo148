@@ -9,12 +9,19 @@ import type { AuthUser } from '@app/contracts';
 import { AppModule } from './../src/app.module';
 import { AppService } from './../src/app.service';
 import { CurrentUser } from './../src/auth/current-user.decorator';
+import { Roles } from './../src/auth/roles.decorator';
 
 @Controller('e2e-protected')
 class ProtectedController {
   @Get()
   me(@CurrentUser() user: AuthUser) {
     return user;
+  }
+
+  @Roles('Owner', 'Admin')
+  @Get('admin')
+  adminOnly() {
+    return { ok: true };
   }
 }
 
@@ -75,11 +82,35 @@ describe('Gateway (e2e)', () => {
   });
 
   it('exposes the validated user through @CurrentUser', () => {
-    const user = { userId: 'u-1', role: 'ADMIN', jti: 'j-1' };
+    const user = { userId: 'u-1', role: 'Admin', jti: 'j-1' };
     authClient.send.mockReturnValue(of(user));
     return request(app.getHttpServer())
       .get('/e2e-protected')
       .set('Authorization', 'Bearer tkn')
       .expect(200, user);
+  });
+
+  it('rejects with 403 a user whose role is not allowed', () => {
+    authClient.send.mockReturnValue(
+      of({ userId: 'u-2', role: 'Employee', jti: 'j-2' }),
+    );
+    return request(app.getHttpServer())
+      .get('/e2e-protected/admin')
+      .set('Authorization', 'Bearer tkn')
+      .expect(403);
+  });
+
+  it('lets an allowed role through a @Roles route', () => {
+    authClient.send.mockReturnValue(
+      of({ userId: 'u-1', role: 'Owner', jti: 'j-1' }),
+    );
+    return request(app.getHttpServer())
+      .get('/e2e-protected/admin')
+      .set('Authorization', 'Bearer tkn')
+      .expect(200, { ok: true });
+  });
+
+  it('answers 401, not 403, on a @Roles route without token', () => {
+    return request(app.getHttpServer()).get('/e2e-protected/admin').expect(401);
   });
 });
