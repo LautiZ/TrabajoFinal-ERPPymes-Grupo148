@@ -6,6 +6,7 @@ export const PAYMENTS_SERVICE = 'PAYMENTS_SERVICE';
 // Message patterns shared by the gateway (sender) and each microservice (handler)
 export const AUTH_PATTERNS = {
   COUNT_USERS: 'auth.users.count',
+  CREATE_USER: 'auth.users.create',
   LOGIN: 'auth.login',
   VALIDATE_TOKEN: 'auth.token.validate',
   LOGOUT: 'auth.logout',
