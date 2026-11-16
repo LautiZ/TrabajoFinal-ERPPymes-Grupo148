@@ -12,6 +12,8 @@ interface EnvVars {
   ERP_MS_PORT: number;
   PAYMENTS_MS_HOST: string;
   PAYMENTS_MS_PORT: number;
+  LOGIN_THROTTLE_LIMIT: number;
+  LOGIN_THROTTLE_TTL_MS: number;
 }
 
 const schema = Joi.object<EnvVars>({
@@ -25,6 +27,8 @@ const schema = Joi.object<EnvVars>({
   ERP_MS_PORT: Joi.number().required(),
   PAYMENTS_MS_HOST: Joi.string().required(),
   PAYMENTS_MS_PORT: Joi.number().required(),
+  LOGIN_THROTTLE_LIMIT: Joi.number().integer().min(1).default(5),
+  LOGIN_THROTTLE_TTL_MS: Joi.number().integer().min(1000).default(60_000),
 }).unknown(true);
 
 export const envs = validateEnvs(schema, process.env);

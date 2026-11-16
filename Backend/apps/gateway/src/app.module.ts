@@ -10,9 +10,14 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { RpcToHttpExceptionFilter } from './common/rpc-to-http-exception.filter';
 import { AuthController } from './auth/auth.controller';
 import { UsersController } from './users/users.controller';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
+    // Policy only: the guard is bound on the login route, not globally
+    ThrottlerModule.forRoot([
+      { ttl: envs.LOGIN_THROTTLE_TTL_MS, limit: envs.LOGIN_THROTTLE_LIMIT },
+    ]),
     ClientsModule.register([
       {
         name: AUTH_SERVICE,
