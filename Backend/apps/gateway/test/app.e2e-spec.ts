@@ -10,6 +10,7 @@ import { AppModule } from './../src/app.module';
 import { AppService } from './../src/app.service';
 import { CurrentUser } from './../src/auth/current-user.decorator';
 import { Roles } from './../src/auth/roles.decorator';
+import { configureApp } from '../src/config/configure-app';
 
 @Controller('e2e-protected')
 class ProtectedController {
@@ -42,6 +43,7 @@ describe('Gateway (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
+    configureApp(app);
     await app.init();
   });
 
@@ -67,7 +69,7 @@ describe('Gateway (e2e)', () => {
   });
 
   it('rejects a protected route without token and skips Auth', async () => {
-    await request(app.getHttpServer()).get('/e2e-protected').expect(401);
+    await request(app.getHttpServer()).get('/api/e2e-protected').expect(401);
     expect(authClient.send).not.toHaveBeenCalled();
   });
 
@@ -76,7 +78,7 @@ describe('Gateway (e2e)', () => {
       throwError(() => ({ status: 401, message: 'Unauthorized' })),
     );
     return request(app.getHttpServer())
-      .get('/e2e-protected')
+      .get('/api/e2e-protected')
       .set('Authorization', 'Bearer tkn')
       .expect(401);
   });
@@ -85,7 +87,7 @@ describe('Gateway (e2e)', () => {
     const user = { userId: 'u-1', role: 'Admin', jti: 'j-1' };
     authClient.send.mockReturnValue(of(user));
     return request(app.getHttpServer())
-      .get('/e2e-protected')
+      .get('/api/e2e-protected')
       .set('Authorization', 'Bearer tkn')
       .expect(200, user);
   });
@@ -95,7 +97,7 @@ describe('Gateway (e2e)', () => {
       of({ userId: 'u-2', role: 'Employee', jti: 'j-2' }),
     );
     return request(app.getHttpServer())
-      .get('/e2e-protected/admin')
+      .get('/api/e2e-protected/admin')
       .set('Authorization', 'Bearer tkn')
       .expect(403);
   });
@@ -105,12 +107,14 @@ describe('Gateway (e2e)', () => {
       of({ userId: 'u-1', role: 'Owner', jti: 'j-1' }),
     );
     return request(app.getHttpServer())
-      .get('/e2e-protected/admin')
+      .get('/api/e2e-protected/admin')
       .set('Authorization', 'Bearer tkn')
       .expect(200, { ok: true });
   });
 
   it('answers 401, not 403, on a @Roles route without token', () => {
-    return request(app.getHttpServer()).get('/e2e-protected/admin').expect(401);
+    return request(app.getHttpServer())
+      .get('/api/e2e-protected/admin')
+      .expect(401);
   });
 });
