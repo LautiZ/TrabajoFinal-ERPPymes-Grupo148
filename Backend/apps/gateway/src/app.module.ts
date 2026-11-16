@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AUTH_SERVICE, ERP_SERVICE, PAYMENTS_SERVICE } from '@app/contracts';
 import { AppController } from './app.controller';
@@ -7,6 +6,8 @@ import { AppService } from './app.service';
 import { AuthGuard } from './auth/auth.guard';
 import { envs } from './config/envs';
 import { RolesGuard } from './auth/roles.guard';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { RpcToHttpExceptionFilter } from './common/rpc-to-http-exception.filter';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { RolesGuard } from './auth/roles.guard';
   controllers: [AppController],
   providers: [
     AppService,
+    { provide: APP_FILTER, useClass: RpcToHttpExceptionFilter },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
