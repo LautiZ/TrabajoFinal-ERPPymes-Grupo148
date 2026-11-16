@@ -1,12 +1,24 @@
 import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { envs } from './config/envs';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersRepository } from './users/users.repository';
+import { SessionsRepository } from './sessions/sessions.repository';
+import { UsersService } from './users/users.service';
+import { UsersController } from './users/users.controller';
 
 @Module({
-  imports: [PrismaModule],
-  controllers: [AuthController],
-  providers: [AuthService, UsersRepository],
+  imports: [
+    PrismaModule,
+    JwtModule.register({
+      secret: envs.JWT_SECRET,
+      // exp is set in the payload from the session, so no expiresIn here
+      signOptions: { algorithm: 'HS256' },
+    }),
+  ],
+  controllers: [AuthController, UsersController],
+  providers: [AuthService, UsersRepository, SessionsRepository, UsersService],
 })
 export class AuthModule {}
