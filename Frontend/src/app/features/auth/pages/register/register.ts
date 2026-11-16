@@ -6,10 +6,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Router, RouterLink } from '@angular/router';
-import { LOGIN_PATH } from '../../../../core/auth-paths';
-import { RegisterRequest } from '../../../../core/models/auth.model';
+import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../../core/utils/api-error';
 import {
@@ -19,18 +18,16 @@ import {
   sameAs,
 } from '../../utils/password-validators';
 
-/** Rechaza valores vacíos o con solo espacios. */
 function notBlank(control: { value: unknown }): { required: true } | null {
   return typeof control.value === 'string' && control.value.trim() ? null : { required: true };
 }
 
-/** Mensaje para errores del registro que no son un email repetido (ese va en el campo). */
 export function registerErrorMessage(error: unknown): string {
   if (error instanceof HttpErrorResponse) {
     if (error.status === 403) {
       return extractErrorMessage(
         error,
-        'El registro público está deshabilitado: ya existe un propietario. Pedile a un administrador que cree tu cuenta.',
+        'No tenés permisos para crear un usuario con este rol.',
       );
     }
     if (error.status === 400 || error.status === 422) {
@@ -43,21 +40,17 @@ export function registerErrorMessage(error: unknown): string {
       return 'El servidor tuvo un problema. Intentá de nuevo en unos minutos.';
     }
   }
-  return 'No se pudo crear la cuenta. Intentá nuevamente.';
+  return 'No se pudo crear el usuario. Intentá nuevamente.';
 }
 
-/**
- * Registro público de arranque: crea la cuenta del propietario mientras no exista uno (RN-16.4).
- * Una vez que existe, el servidor lo rechaza y se muestra su mensaje.
- */
 @Component({
   imports: [
     ReactiveFormsModule,
-    RouterLink,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatSelectModule,
     MatProgressSpinnerModule,
   ],
   selector: 'app-register',
@@ -71,7 +64,6 @@ export class Register {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly loginPath = LOGIN_PATH;
   protected readonly passwordMin = PASSWORD_MIN_LENGTH;
   protected readonly passwordMax = PASSWORD_MAX_LENGTH;
 
@@ -79,16 +71,30 @@ export class Register {
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
+  // Obtener rol del usuario actual para filtrar las opciones permitidas
+  private readonly currentUserRole = this.auth.role?.() ?? 'Owner';
+  protected readonly availableRoles = this.getCurrentUserAllowedRoles();
+
+  private getCurrentUserAllowedRoles(): { value: string; label: string }[] {
+    if (this.currentUserRole === 'Owner') {
+      return [
+        { value: 'Admin', label: 'Administrador' },
+        { value: 'Employee', label: 'Empleado' },
+      ];
+    }
+    return [{ value: 'Employee', label: 'Empleado' }];
+  }
+
   protected readonly form = this.fb.group({
     name: this.fb.control('', [notBlank, Validators.maxLength(100)]),
     surname: this.fb.control('', Validators.maxLength(100)),
     email: this.fb.control('', [Validators.required, Validators.email, Validators.maxLength(254)]),
+    role: this.fb.control(this.availableRoles[0]?.value ?? 'Employee', [Validators.required]),
     password: this.fb.control('', [Validators.required, passwordPolicy]),
     confirmPassword: this.fb.control('', [Validators.required, sameAs('password')]),
   });
 
   constructor() {
-    // La confirmación depende de la contraseña: hay que revalidarla cuando esta cambia.
     this.form.controls.password.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.form.controls.confirmPassword.updateValueAndValidity());
@@ -109,20 +115,24 @@ export class Register {
 
     this.submitting.set(true);
     this.errorMessage.set(null);
-    const { name, surname, email, password } = this.form.getRawValue();
-    const request: RegisterRequest = {
+    const { name, surname, email, password, role } = this.form.getRawValue();
+    
+    const request = {
       email: email.trim(),
       password,
       name: name.trim(),
+      role,
       ...(surname.trim() ? { surname: surname.trim() } : {}),
     };
 
     this.auth
-      .register(request)
+      .createUser(request)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        // Tras registrarse se lleva al login (no se inicia sesión sola): decisión de equipo pendiente de confirmar.
-        next: () => void this.router.navigate([LOGIN_PATH], { queryParams: { registered: '1' } }),
+        next: () => {
+          this.submitting.set(false);
+          this.form.reset({ role: this.availableRoles[0]?.value ?? 'Employee' });
+        },
         error: (error: unknown) => this.onError(error),
       });
   }
@@ -130,7 +140,6 @@ export class Register {
   private onError(error: unknown): void {
     this.submitting.set(false);
     if (error instanceof HttpErrorResponse && error.status === 409) {
-      // El email ya existe: se marca en el campo; el error se limpia cuando el usuario lo edita.
       this.form.controls.email.setErrors({ duplicate: true });
       this.form.controls.email.markAsTouched();
       return;

@@ -83,7 +83,9 @@ export class AuthService {
       .post<LoginResponse>(AUTH_ENDPOINTS.login, credentials)
       .pipe(map((response) => this.startSession(readToken(response))));
   }
-
+  createUser(data: { email: string; password: string; name: string; surname?: string; role: string }): Observable<void> {
+    return this.api.post<unknown>('users', data).pipe(map(() => undefined));
+  }
   /** Registro público de arranque (RN-16.4). No inicia sesión. */
   register(data: RegisterRequest): Observable<void> {
     return this.api.post<unknown>(AUTH_ENDPOINTS.register, data).pipe(map(() => undefined));

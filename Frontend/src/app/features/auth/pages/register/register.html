@@ -4,10 +4,9 @@
       <mat-icon fontSet="material-symbols-outlined">hub</mat-icon>
     </span>
     <p class="app-eyebrow">ERP Pymes</p>
-    <h1 id="register-title">Crear cuenta</h1>
+    <h1 id="register-title">Alta de usuario</h1>
     <p class="auth__intro">
-      El registro público es solo para crear la cuenta del propietario. Si ya existe, pedile a un
-      administrador que cree la tuya.
+      Creá un nuevo usuario para el sistema asignándole su rol correspondiente.
     </p>
 
     @if (errorMessage(); as message) {
@@ -51,6 +50,19 @@
         <mat-error>Máximo 254 caracteres.</mat-error>
         } @else if (form.controls.email.hasError('duplicate')) {
         <mat-error>Ya existe un usuario con ese email.</mat-error>
+        }
+      </mat-form-field>
+
+      <!-- Selector de Rol dinámico -->
+      <mat-form-field appearance="outline">
+        <mat-label>Rol</mat-label>
+        <mat-select formControlName="role" required>
+          @for (roleOption of availableRoles; track roleOption.value) {
+            <mat-option [value]="roleOption.value">{{ roleOption.label }}</mat-option>
+          }
+        </mat-select>
+        @if (form.controls.role.hasError('required')) {
+        <mat-error>El rol es obligatorio.</mat-error>
         }
       </mat-form-field>
 
@@ -112,10 +124,8 @@
       >
         @if (submitting()) {
         <mat-progress-spinner mode="indeterminate" diameter="20" />
-        Creando cuenta... } @else { Crear cuenta }
+        Creando usuario... } @else { Crear usuario }
       </button>
     </form>
-
-    <p class="auth__alt">¿Ya tenés cuenta? <a [routerLink]="loginPath">Iniciar sesión</a></p>
   </section>
 </main>
