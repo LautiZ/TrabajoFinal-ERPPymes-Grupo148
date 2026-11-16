@@ -5,6 +5,7 @@ loadAppEnv('gateway');
 
 interface EnvVars {
   PORT: number;
+  CORS_ORIGINS: string[];
   AUTH_MS_HOST: string;
   AUTH_MS_PORT: number;
   ERP_MS_HOST: string;
@@ -15,6 +16,9 @@ interface EnvVars {
 
 const schema = Joi.object<EnvVars>({
   PORT: Joi.number().required(),
+  CORS_ORIGINS: Joi.string()
+    .required()
+    .custom((value: string) => value.split(',').map((o) => o.trim())),
   AUTH_MS_HOST: Joi.string().required(),
   AUTH_MS_PORT: Joi.number().required(),
   ERP_MS_HOST: Joi.string().required(),

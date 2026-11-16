@@ -1,5 +1,9 @@
 import { randomUUID } from 'crypto';
-import { hashPassword, verifyPassword } from './password';
+import {
+  hashPassword,
+  verifyPassword,
+  verifyPasswordOrDummy,
+} from './password';
 
 describe('password', () => {
   // Generated at runtime so secret scanners never see a literal password
@@ -31,5 +35,13 @@ describe('password', () => {
     const hash = await hashPassword(plain);
 
     await expect(verifyPassword(hash, 'wrong-password')).resolves.toBe(false);
+  });
+
+  it('returns false for a missing user (dummy hash path)', async () => {
+    await expect(verifyPasswordOrDummy(null, 'whatever')).resolves.toBe(false);
+  });
+
+  it('returns false instead of throwing on a malformed hash', async () => {
+    await expect(verifyPasswordOrDummy('not-a-hash', 'x')).resolves.toBe(false);
   });
 });
