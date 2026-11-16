@@ -8,6 +8,8 @@ import { envs } from './config/envs';
 import { RolesGuard } from './auth/roles.guard';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { RpcToHttpExceptionFilter } from './common/rpc-to-http-exception.filter';
+import { AuthController } from './auth/auth.controller';
+import { UsersController } from './users/users.controller';
 
 @Module({
   imports: [
@@ -29,7 +31,7 @@ import { RpcToHttpExceptionFilter } from './common/rpc-to-http-exception.filter'
       },
     ]),
   ],
-  controllers: [AppController],
+  controllers: [AppController, AuthController, UsersController],
   providers: [
     AppService,
     { provide: APP_FILTER, useClass: RpcToHttpExceptionFilter },
