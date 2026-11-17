@@ -1,0 +1,50 @@
+# Configuración de nginx del frontend (TES-66).
+# Es una plantilla: al arrancar, la imagen oficial de nginx reemplaza ${GATEWAY_URL} con la
+# variable de entorno y deja el resultado en /etc/nginx/conf.d/default.conf. Las variables
+# propias de nginx ($uri, $host...) no se tocan: el Dockerfile limita el reemplazo a GATEWAY_URL.
+
+server {
+  listen 80;
+  server_name _;
+
+  root /usr/share/nginx/html;
+  index index.html;
+
+  gzip on;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+
+  # `add_header` en un `location` reemplaza al del `server`: por eso se incluye el archivo en cada uno.
+  include /etc/nginx/conf.d/security-headers.conf;
+
+  # API: se reenvía al Gateway por la red interna de Docker. Para el navegador es el mismo
+  # origen que la app, así que no hace falta CORS y la CSP queda en connect-src 'self'.
+  location /api/ {
+    # Sin path al final: el Gateway recibe /api/... tal cual (su prefijo global es /api)
+    proxy_pass ${GATEWAY_URL};
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    # Se pisa (no se agrega): el cliente no puede inyectar una IP falsa en la cadena.
+    # El Gateway la usa para el rate limit del login (trust proxy).
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  # Archivos con hash en el nombre (main-XXXX.js, styles-XXXX.css): cache larga.
+  location ~* \.(?:js|css|woff2?|ico|svg|png|jpg|jpeg|webp)$ {
+    include /etc/nginx/conf.d/security-headers.conf;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    try_files $uri =404;
+  }
+
+  # El HTML nunca se cachea: así un despliegue nuevo se toma enseguida.
+  location = /index.html {
+    include /etc/nginx/conf.d/security-headers.conf;
+    add_header Cache-Control "no-store" always;
+  }
+
+  # Aplicación de una sola página: cualquier ruta del router vuelve a index.html.
+  location / {
+    include /etc/nginx/conf.d/security-headers.conf;
+    try_files $uri $uri/ /index.html;
+  }
+}

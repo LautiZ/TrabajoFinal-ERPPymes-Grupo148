@@ -108,14 +108,35 @@ services:
       AUTH_MS_HOST: auth
       ERP_MS_HOST: erp
       PAYMENTS_MS_HOST: payments
+      # detras del nginx del frontend: toma la IP real del cliente para el rate limit del login
+      TRUST_PROXY_HOPS: 1
+      # solo para ng serve; desde Docker el frontend usa el mismo origen (proxy /api), sin CORS
+      CORS_ORIGINS: http://localhost:4200
     ports:
-      - "3000:3000" # unico servicio expuesto al exterior
+      # solo desde esta maquina (Swagger y ng serve): desde afuera se entra por el frontend.
+      # Publicarlo en todas las interfaces permitiria falsear X-Forwarded-For y saltear el rate limit
+      - "127.0.0.1:3000:3000"
     networks:
       - backend
     depends_on:
       - auth
       - erp
       - payments
+
+  frontend:
+    build:
+      context: ./Frontend
+    image: erp-pymes-frontend
+    container_name: erp-pymes-frontend
+    restart: unless-stopped
+    environment:
+      GATEWAY_URL: http://gateway:3000 # nginx reenvia /api al Gateway por la red privada
+    ports:
+      - "8080:80" # punto de entrada de la aplicacion
+    networks:
+      - backend
+    depends_on:
+      - gateway
 
 networks:
   backend: # red privada del sistema

@@ -15,6 +15,7 @@ interface EnvVars {
   PAYMENTS_MS_PORT: number;
   LOGIN_THROTTLE_LIMIT: number;
   LOGIN_THROTTLE_TTL_MS: number;
+  TRUST_PROXY_HOPS: number;
 }
 
 const schema = Joi.object<EnvVars>({
@@ -31,6 +32,9 @@ const schema = Joi.object<EnvVars>({
   PAYMENTS_MS_PORT: Joi.number().required(),
   LOGIN_THROTTLE_LIMIT: Joi.number().integer().min(1).default(5),
   LOGIN_THROTTLE_TTL_MS: Joi.number().integer().min(1000).default(60_000),
+  // Reverse proxies in front of the gateway (1 behind the frontend's nginx).
+  // 0 = no proxy: X-Forwarded-For is ignored, so clients cannot spoof their IP
+  TRUST_PROXY_HOPS: Joi.number().integer().min(0).default(0),
 }).unknown(true);
 
 export const envs = validateEnvs(schema, process.env);

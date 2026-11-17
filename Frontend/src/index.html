@@ -6,8 +6,9 @@
       Content-Security-Policy (TES-70): reduce la superficie de XSS, ya que el JWT es accesible desde JS.
       - Scripts solo propios: sin 'unsafe-inline' ni 'unsafe-eval'.
       - Estilos: 'unsafe-inline' solo para estilos (Angular inyecta los de cada componente) y Google Fonts.
-      - connect-src: el propio origen y el API Gateway. Si cambia la URL del Gateway, actualizarla acá
-        y en nginx/security-headers.conf. Mercado Pago no se lista: el pago es una redirección de página.
+      - connect-src: el propio origen (en Docker, nginx reenvía /api al Gateway) y http://localhost:3000,
+        que es el Gateway al que apunta ng serve. En Docker la cabecera de nginx deja solo 'self' y el
+        navegador aplica las dos políticas a la vez. Mercado Pago no se lista: el pago es una redirección.
       `frame-ancestors` no funciona en <meta>: lo aplica nginx como cabecera HTTP.
     -->
     <meta
