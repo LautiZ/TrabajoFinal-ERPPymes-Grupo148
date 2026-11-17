@@ -16,6 +16,9 @@ export interface MercadoPagoOptions {
   timeoutMs: number;
 }
 
+// The API rejects longer codes with a 400
+const MAX_EXTERNAL_CODE_LENGTH = 30;
+
 const toCents = (amount: number) => Math.round(amount * 100);
 const formatCents = (cents: number) => (cents / 100).toFixed(2);
 
@@ -30,7 +33,9 @@ export class MercadoPagoSdkClient extends MercadoPagoClient {
     this.orders = new Order(
       new MercadoPagoConfig({
         accessToken: options.accessToken,
-        options: { timeout: options.timeoutMs },
+        // One retry at most: the SDK default (3, with backoff up to 30 s) would
+        // outlive the gateway timeout of the payment route
+        options: { timeout: options.timeoutMs, maxRetries: 1 },
       }),
     );
   }
@@ -51,7 +56,7 @@ export class MercadoPagoSdkClient extends MercadoPagoClient {
           external_reference: input.externalReference,
           total_amount: formatCents(totalCents),
           items: input.items.map((item) => ({
-            external_code: item.id,
+            external_code: item.code.slice(0, MAX_EXTERNAL_CODE_LENGTH),
             title: item.title,
             quantity: item.quantity,
             unit_price: formatCents(toCents(item.unitPrice)),

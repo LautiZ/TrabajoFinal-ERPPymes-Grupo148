@@ -31,4 +31,5 @@ export const ERP_PATTERNS = {
 
 export const PAYMENTS_PATTERNS = {
   COUNT_PAYMENTS: 'payments.payments.count',
+  CREATE_PAYMENT: 'payments.payments.create',
 } as const;

@@ -2,7 +2,8 @@
 // doubles as the Nest injection token, so services depend on it and tests
 // swap it for a plain mock.
 export interface CheckoutItem {
-  id: string;
+  // Business code shown in Mercado Pago reports (the product SKU)
+  code: string;
   title: string;
   // Whole units: weighed products (Kg) go as a single line priced at their
   // subtotal, so the order total always matches the sale total exactly
