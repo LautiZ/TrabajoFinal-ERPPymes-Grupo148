@@ -449,6 +449,34 @@ describe('Gateway ERP routes (e2e)', () => {
     ]);
   });
 
+  it.each([
+    ['true', true],
+    ['false', false],
+  ])(
+    'GET /api/products?active=%s reaches the ERP as the boolean %s',
+    async (raw, parsed) => {
+      erpClient.send.mockReturnValue(
+        of({ data: [], meta: { total: 0, page: 1, limit: 24, totalPages: 0 } }),
+      );
+
+      await request(app.getHttpServer())
+        .get(`/api/products?active=${raw}&limit=24`)
+        .set('Authorization', 'Bearer tkn')
+        .expect(200);
+      expect(lastErpCall()[1]).toEqual(
+        expect.objectContaining({ active: parsed }),
+      );
+    },
+  );
+
+  it('GET /api/products rejects an active value that is not a boolean', async () => {
+    await request(app.getHttpServer())
+      .get('/api/products?active=yes')
+      .set('Authorization', 'Bearer tkn')
+      .expect(400);
+    expect(erpClient.send).not.toHaveBeenCalled();
+  });
+
   it('GET /api/products rejects an unknown sort field without reaching the ERP', async () => {
     await request(app.getHttpServer())
       .get('/api/products?sortBy=password')
@@ -547,5 +575,141 @@ describe('Gateway ERP routes (e2e)', () => {
       ERP_PATTERNS.DELETE_PRODUCT,
       { id: productId },
     ]);
+  });
+});
+
+describe('Gateway sales routes (e2e)', () => {
+  let app: INestApplication<App>;
+  const authClient = { send: jest.fn() };
+  const erpClient = { send: jest.fn() };
+  const cashier = {
+    userId: '6f1c2a9e-8b4d-4e2f-9a1b-2c3d4e5f6a7b',
+    role: 'Employee',
+    jti: 'j-4',
+  };
+  const productA = '3f1c2a9e-8b4d-4e2f-9a1b-2c3d4e5f6a7b';
+  const productB = '4f1c2a9e-8b4d-4e2f-9a1b-2c3d4e5f6a7b';
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(AppService)
+      .useValue({ checkServices: jest.fn() })
+      .overrideProvider(AUTH_SERVICE)
+      .useValue(authClient)
+      .overrideProvider(ERP_SERVICE)
+      .useValue(erpClient)
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    configureApp(app);
+    await app.init();
+  });
+
+  beforeEach(() => {
+    erpClient.send.mockReset();
+    authClient.send.mockReturnValue(of(cashier));
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const post = (body: object) =>
+    request(app.getHttpServer())
+      .post('/api/sales')
+      .set('Authorization', 'Bearer tkn')
+      .send(body);
+
+  it('POST /api/sales takes userId from the session, never from the body', async () => {
+    erpClient.send.mockReturnValue(of({ id: 'sale-1' }));
+    const items = [{ productId: productA, quantity: 2 }];
+
+    await post({ items }).expect(201);
+    expect(erpClient.send).toHaveBeenCalledWith(ERP_PATTERNS.CREATE_SALE, {
+      userId: cashier.userId,
+      sale: { items },
+    });
+  });
+
+  it('POST /api/sales rejects a client-sent total (RN-06)', async () => {
+    await post({
+      items: [{ productId: productA, quantity: 1 }],
+      total: 1,
+    }).expect(400);
+    expect(erpClient.send).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/sales rejects a repeated product and an empty cart', async () => {
+    await post({
+      items: [
+        { productId: productA, quantity: 1 },
+        { productId: productA, quantity: 2 },
+      ],
+    }).expect(400);
+    await post({ items: [] }).expect(400);
+    expect(erpClient.send).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/sales forwards the stock conflict body the frontend parses', async () => {
+    const items = [
+      { productId: productA, name: 'Yerba', requested: 5, available: 2 },
+      { productId: productB, name: 'Queso', requested: 1, available: 0 },
+    ];
+    erpClient.send.mockReturnValue(
+      throwError(() => ({
+        status: 409,
+        message: 'Insufficient stock',
+        code: 'INSUFFICIENT_STOCK',
+        items,
+      })),
+    );
+
+    const res = await post({
+      items: [
+        { productId: productA, quantity: 5 },
+        { productId: productB, quantity: 1 },
+      ],
+    }).expect(409);
+    expect(res.body).toEqual({
+      statusCode: 409,
+      message: 'Insufficient stock',
+      code: 'INSUFFICIENT_STOCK',
+      items,
+    });
+  });
+
+  it('GET /api/sales rejects a date without time and offset', async () => {
+    await request(app.getHttpServer())
+      .get('/api/sales?from=2026-11-17')
+      .set('Authorization', 'Bearer tkn')
+      .expect(400);
+    expect(erpClient.send).not.toHaveBeenCalled();
+  });
+
+  it('GET /api/sales forwards valid filters', async () => {
+    const page = {
+      data: [],
+      meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+    };
+    erpClient.send.mockReturnValue(of(page));
+    const from = '2026-11-17T00:00:00-03:00';
+
+    await request(app.getHttpServer())
+      .get(`/api/sales?state=Paid&from=${encodeURIComponent(from)}`)
+      .set('Authorization', 'Bearer tkn')
+      .expect(200, page);
+    expect(erpClient.send).toHaveBeenCalledWith(
+      ERP_PATTERNS.LIST_SALES,
+      expect.objectContaining({ state: 'Paid', from }),
+    );
+  });
+
+  it('GET /api/sales/:id rejects an id that is not a UUID', async () => {
+    await request(app.getHttpServer())
+      .get('/api/sales/42')
+      .set('Authorization', 'Bearer tkn')
+      .expect(400);
   });
 });

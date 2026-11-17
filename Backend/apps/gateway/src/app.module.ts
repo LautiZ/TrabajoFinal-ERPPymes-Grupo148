@@ -13,6 +13,7 @@ import { UsersController } from './users/users.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ProductsController } from './products/products.controller';
 import { CategoriesController } from './categories/categories.controller';
+import { SalesController } from './sales/sales.controller';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { CategoriesController } from './categories/categories.controller';
     UsersController,
     ProductsController,
     CategoriesController,
+    SalesController,
   ],
   providers: [
     AppService,
