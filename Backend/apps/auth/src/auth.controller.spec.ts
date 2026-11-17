@@ -2,17 +2,23 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UsersRepository } from './users/users.repository';
+import { JwtService } from '@nestjs/jwt';
+import { SessionsRepository } from './sessions/sessions.repository';
+import { AuthUser } from '@app/contracts';
 
 describe('AuthController', () => {
+  let app: TestingModule;
   let authController: AuthController;
   let usersRepository: UsersRepository;
 
   beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
+    app = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
         AuthService,
         { provide: UsersRepository, useValue: { count: jest.fn() } },
+        { provide: SessionsRepository, useValue: {} },
+        { provide: JwtService, useValue: {} },
       ],
     }).compile();
 
@@ -24,6 +30,46 @@ describe('AuthController', () => {
     it('should return the count of users', async () => {
       jest.spyOn(usersRepository, 'count').mockResolvedValue(5);
       expect(await authController.countUsers()).toBe(5);
+    });
+  });
+
+  describe('login', () => {
+    it('delegates to AuthService.login', async () => {
+      const dto = { email: 'owner@pyme.test', password: 'secret' };
+      const response = { accessToken: 'jwt', user: {} } as never;
+      const spy = jest
+        .spyOn(app.get(AuthService), 'login')
+        .mockResolvedValue(response);
+
+      expect(await authController.login(dto)).toBe(response);
+      expect(spy).toHaveBeenCalledWith(dto);
+    });
+  });
+
+  describe('validateToken', () => {
+    it('delegates to AuthService.validateToken', async () => {
+      const user: AuthUser = {
+        userId: 'user-1',
+        role: 'Owner',
+        jti: 'session-1',
+      };
+      const spy = jest
+        .spyOn(app.get(AuthService), 'validateToken')
+        .mockResolvedValue(user);
+
+      expect(await authController.validateToken({ token: 'a.b.c' })).toBe(user);
+      expect(spy).toHaveBeenCalledWith({ token: 'a.b.c' });
+    });
+  });
+
+  describe('logout', () => {
+    it('delegates to AuthService.logout', async () => {
+      const spy = jest
+        .spyOn(app.get(AuthService), 'logout')
+        .mockResolvedValue(undefined);
+
+      await authController.logout({ jti: 'session-1' });
+      expect(spy).toHaveBeenCalledWith({ jti: 'session-1' });
     });
   });
 });
