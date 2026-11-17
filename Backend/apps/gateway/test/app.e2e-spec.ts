@@ -4,7 +4,12 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { EMPTY, of, throwError } from 'rxjs';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AUTH_PATTERNS, AUTH_SERVICE } from '@app/contracts';
+import {
+  AUTH_PATTERNS,
+  AUTH_SERVICE,
+  ERP_PATTERNS,
+  ERP_SERVICE,
+} from '@app/contracts';
 // Interfaces in decorated signatures need `import type` (isolatedModules + emitDecoratorMetadata)
 import type { AuthUser } from '@app/contracts';
 import { AppModule } from './../src/app.module';
@@ -365,5 +370,164 @@ describe('Gateway Swagger docs (e2e)', () => {
 
   it('serves the Swagger UI without a token', async () => {
     await request(app.getHttpServer()).get('/api/docs').expect(200);
+  });
+});
+
+describe('Gateway ERP routes (e2e)', () => {
+  let app: INestApplication<App>;
+  const authClient = { send: jest.fn() };
+  const erpClient = { send: jest.fn() };
+  const employee = {
+    userId: '6f1c2a9e-8b4d-4e2f-9a1b-2c3d4e5f6a7b',
+    role: 'Employee',
+    jti: 'j-3',
+  };
+  const productId = '3f1c2a9e-8b4d-4e2f-9a1b-2c3d4e5f6a7b';
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(AppService)
+      .useValue({ checkServices: jest.fn() })
+      .overrideProvider(AUTH_SERVICE)
+      .useValue(authClient)
+      .overrideProvider(ERP_SERVICE)
+      .useValue(erpClient)
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    configureApp(app);
+    await app.init();
+  });
+
+  beforeEach(() => {
+    erpClient.send.mockReset();
+    // Every request comes from a valid Employee session
+    authClient.send.mockReturnValue(of(employee));
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const lastErpCall = () =>
+    erpClient.send.mock.calls.at(-1) as [string, unknown];
+
+  it('GET /api/products/stock-summary is not captured by the :id route', async () => {
+    const summary = { total: 5, ok: 2, low: 2, out: 1 };
+    erpClient.send.mockReturnValue(of(summary));
+
+    await request(app.getHttpServer())
+      .get('/api/products/stock-summary')
+      .set('Authorization', 'Bearer tkn')
+      .expect(200, summary);
+    expect(lastErpCall()[0]).toBe(ERP_PATTERNS.STOCK_SUMMARY);
+  });
+
+  it('GET /api/products accepts the legacy lowStockThreshold param and applies defaults', async () => {
+    const page = {
+      data: [],
+      meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+    };
+    erpClient.send.mockReturnValue(of(page));
+
+    await request(app.getHttpServer())
+      .get('/api/products?stockStatus=low&lowStockThreshold=10&page=2')
+      .set('Authorization', 'Bearer tkn')
+      .expect(200, page);
+
+    expect(lastErpCall()).toEqual([
+      ERP_PATTERNS.LIST_PRODUCTS,
+      expect.objectContaining({
+        page: 2,
+        limit: 10,
+        sortBy: 'name',
+        sortOrder: 'asc',
+        stockStatus: 'low',
+      }),
+    ]);
+  });
+
+  it('GET /api/products rejects an unknown sort field without reaching the ERP', async () => {
+    await request(app.getHttpServer())
+      .get('/api/products?sortBy=password')
+      .set('Authorization', 'Bearer tkn')
+      .expect(400);
+    expect(erpClient.send).not.toHaveBeenCalled();
+  });
+
+  it('GET /api/products/:id rejects an id that is not a UUID', async () => {
+    await request(app.getHttpServer())
+      .get('/api/products/not-a-uuid')
+      .set('Authorization', 'Bearer tkn')
+      .expect(400);
+    expect(erpClient.send).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/products lets an Employee create (RN-16.3) and takes userId from the session', async () => {
+    erpClient.send.mockReturnValue(of({ id: productId }));
+    const body = {
+      name: 'Yerba 1kg',
+      sku: 'YER-001',
+      price: 3500,
+      stock: 10,
+      unit: 'Unit',
+      categoryId: productId,
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/products')
+      .set('Authorization', 'Bearer tkn')
+      .send(body)
+      .expect(201);
+
+    expect(lastErpCall()).toEqual([
+      ERP_PATTERNS.CREATE_PRODUCT,
+      { userId: employee.userId, product: body },
+    ]);
+  });
+
+  it('PATCH /api/products/:id rejects stock in the body (RN-01)', async () => {
+    await request(app.getHttpServer())
+      .patch(`/api/products/${productId}`)
+      .set('Authorization', 'Bearer tkn')
+      .send({ stock: 99 })
+      .expect(400);
+    expect(erpClient.send).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/products/:id/stock-movements maps the ERP 409 to HTTP 409', async () => {
+    erpClient.send.mockReturnValue(
+      throwError(() => ({ status: 409, message: 'Insufficient stock' })),
+    );
+
+    await request(app.getHttpServer())
+      .post(`/api/products/${productId}/stock-movements`)
+      .set('Authorization', 'Bearer tkn')
+      .send({ type: 'Outcome', quantity: 5, reason: 'Broken' })
+      .expect(409);
+
+    expect(lastErpCall()).toEqual([
+      ERP_PATTERNS.ADJUST_STOCK,
+      {
+        id: productId,
+        userId: employee.userId,
+        adjustment: { type: 'Outcome', quantity: 5, reason: 'Broken' },
+      },
+    ]);
+  });
+
+  it('DELETE /api/products/:id answers 204', async () => {
+    erpClient.send.mockReturnValue(EMPTY);
+
+    await request(app.getHttpServer())
+      .delete(`/api/products/${productId}`)
+      .set('Authorization', 'Bearer tkn')
+      .expect(204);
+    expect(lastErpCall()).toEqual([
+      ERP_PATTERNS.DELETE_PRODUCT,
+      { id: productId },
+    ]);
   });
 });
