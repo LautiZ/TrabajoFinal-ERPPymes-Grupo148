@@ -3,9 +3,10 @@ import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { PaymentsRepository } from './payments/payments.repository';
+import { MercadoPagoModule } from './mercadopago/mercadopago.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, MercadoPagoModule],
   controllers: [PaymentsController],
   providers: [PaymentsService, PaymentsRepository],
 })

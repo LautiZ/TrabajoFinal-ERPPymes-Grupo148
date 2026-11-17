@@ -37,6 +37,20 @@ Cada servicio tiene su propio `.env` en `apps/<servicio>/.env`, que no se versio
 - Las variables se validan con Joi al arrancar (`validateEnvs()` de `libs/contracts`). Si falta una variable requerida, el servicio no arranca y muestra `Config validation error`.
 - Al correr con Docker, `docker-compose.yml` reemplaza los hosts (`localhost` por el nombre de cada servicio) y arma `DATABASE_URL` a partir del `.env` de la raíz del repositorio.
 
+### Credenciales de Mercado Pago
+
+Los pagos usan Checkout Pro mediante la **API de Orders** (la que Mercado Pago recomienda para integraciones nuevas; la de Preferencias quedó como legacy). El Payments MS no arranca sin `MP_ACCESS_TOKEN` en `apps/payments/.env`. En desarrollo se usan siempre **cuentas de prueba**, nunca una cuenta real:
+
+1. En [Mercado Pago Developers](https://www.mercadopago.com.ar/developers/panel/app), crear una aplicación de tipo Checkout Pro con **API de Orders**.
+2. En la aplicación, sección **Cuentas de prueba**, crear un usuario vendedor y un usuario comprador (Argentina).
+3. Iniciar sesión con el vendedor de prueba y copiar el **Access Token de sus credenciales de producción** (empieza con `APP_USR-`) en `MP_ACCESS_TOKEN`. La API de Orders no acepta las credenciales de prueba (`TEST-`): responde `401 invalid_credentials`.
+4. Verificar el token sin levantar el sistema: `pnpm mp:smoke` crea una orden de prueba e imprime su `checkoutUrl`, y `pnpm mp:smoke <orderId>` muestra su estado (`MP_ACCESS_TOKEN` tiene que estar seteada en la terminal).
+5. Pagar en el checkout iniciando sesión con el comprador de prueba (o con las tarjetas de prueba de la documentación de Mercado Pago).
+
+- El token es privado: no se commitea ni se loguea. Los errores del SDK se registran en el log del servicio (tipo, estado y mensaje del proveedor, sin el token), y al cliente le llega solo un mensaje genérico (`502`/`503`/`404`).
+- `MP_TIMEOUT_MS` (opcional, por defecto `5000`) limita cuánto espera el servicio a Mercado Pago antes de responder `503`.
+- Los tests unitarios leen el mismo `.env`, así que también necesitan la variable (cualquier valor sirve: los tests no llaman a Mercado Pago).
+
 ## Ejecución
 
 Todos los comandos se ejecutan desde `Backend/`.
