@@ -5,7 +5,6 @@ import {
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCreatedResponse,
-  ApiForbiddenResponse,
   ApiGatewayTimeoutResponse,
   ApiNotFoundResponse,
   ApiServiceUnavailableResponse,
@@ -25,10 +24,10 @@ import {
   SaleNotPayableResponseDto,
 } from './dto/payment-response.dto';
 
-// Employees have no access to the Payments MS (RN-16, RN-16.3)
+// Payments are Owner/Admin by default (RN-16.3). Each route that Employees may
+// use overrides it on the handler, which RolesGuard reads first.
 @ApiTags('payments')
 @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
-@ApiForbiddenResponse({ description: 'Employees cannot access payments' })
 @Roles('Owner', 'Admin')
 @Controller('payments')
 export class PaymentsController {
@@ -36,11 +35,13 @@ export class PaymentsController {
     @Inject(PAYMENTS_SERVICE) private readonly paymentsClient: ClientProxy,
   ) {}
 
+  // Employees run the counter, so they can open the checkout of a sale (RN-16.3)
   /**
-   * Open the Mercado Pago checkout of a sale in Ordered. Amount and items come
-   * from the ERP. If the sale already has an open checkout, that one is returned
-   * instead of creating a second order, so the call is safe to repeat.
+   * Open the Mercado Pago checkout of a sale in Ordered (any role). Amount and
+   * items come from the ERP. If the sale already has an open checkout, that one
+   * is returned instead of creating a second order, so the call is safe to repeat.
    */
+  @Roles('Owner', 'Admin', 'Employee')
   @Post()
   @ApiCreatedResponse({ type: PaymentResponseDto })
   @ApiBadRequestResponse({ description: 'saleId is missing or not a UUID' })
