@@ -5,6 +5,7 @@ loadAppEnv('gateway');
 
 interface EnvVars {
   PORT: number;
+  SWAGGER_ENABLED: boolean;
   CORS_ORIGINS: string[];
   AUTH_MS_HOST: string;
   AUTH_MS_PORT: number;
@@ -18,6 +19,7 @@ interface EnvVars {
 
 const schema = Joi.object<EnvVars>({
   PORT: Joi.number().required(),
+  SWAGGER_ENABLED: Joi.boolean().default(false),
   CORS_ORIGINS: Joi.string()
     .required()
     .custom((value: string) => value.split(',').map((o) => o.trim())),

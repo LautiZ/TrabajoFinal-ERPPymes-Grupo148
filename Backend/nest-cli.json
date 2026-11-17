@@ -5,7 +5,13 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "webpack": true,
-    "tsConfigPath": "apps/gateway/tsconfig.app.json"
+    "tsConfigPath": "apps/gateway/tsconfig.app.json",
+    "plugins": [
+      {
+        "name": "@nestjs/swagger",
+        "options": { "classValidatorShim": true, "introspectComments": true }
+      }
+    ]
   },
   "monorepo": true,
   "root": "apps/gateway",
@@ -16,7 +22,8 @@
       "entryFile": "main",
       "sourceRoot": "apps/auth/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/auth/tsconfig.app.json"
+        "tsConfigPath": "apps/auth/tsconfig.app.json",
+        "plugins": []
       }
     },
     "contracts": {
@@ -34,7 +41,8 @@
       "entryFile": "main",
       "sourceRoot": "apps/erp/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/erp/tsconfig.app.json"
+        "tsConfigPath": "apps/erp/tsconfig.app.json",
+        "plugins": []
       }
     },
     "gateway": {
@@ -52,7 +60,8 @@
       "entryFile": "main",
       "sourceRoot": "apps/payments/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/payments/tsconfig.app.json"
+        "tsConfigPath": "apps/payments/tsconfig.app.json",
+        "plugins": []
       }
     }
   }
