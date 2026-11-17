@@ -518,6 +518,24 @@ describe('Gateway ERP routes (e2e)', () => {
     ]);
   });
 
+  it('DELETE /api/categories/:id maps the ERP 409 to HTTP 409', async () => {
+    erpClient.send.mockReturnValue(
+      throwError(() => ({
+        status: 409,
+        message: 'Category has active products',
+      })),
+    );
+
+    await request(app.getHttpServer())
+      .delete(`/api/categories/${productId}`)
+      .set('Authorization', 'Bearer tkn')
+      .expect(409);
+    expect(lastErpCall()).toEqual([
+      ERP_PATTERNS.DELETE_CATEGORY,
+      { id: productId },
+    ]);
+  });
+
   it('DELETE /api/products/:id answers 204', async () => {
     erpClient.send.mockReturnValue(EMPTY);
 

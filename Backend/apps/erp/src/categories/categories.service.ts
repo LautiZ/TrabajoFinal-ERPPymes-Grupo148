@@ -16,4 +16,18 @@ export class CategoriesService {
     if (!created) throw rpcError(409, 'Category name already exists');
     return created;
   }
+
+  // Rejected while active products use it, so no product points to a deleted category
+  async remove(id: string): Promise<void> {
+    if (!(await this.categoriesRepository.existsActive(id))) {
+      throw rpcError(404, 'Category not found');
+    }
+    if ((await this.categoriesRepository.countActiveProducts(id)) > 0) {
+      throw rpcError(409, 'Category has active products');
+    }
+    // Still checked: it may have been deleted between both queries
+    if (!(await this.categoriesRepository.softDelete(id))) {
+      throw rpcError(404, 'Category not found');
+    }
+  }
 }

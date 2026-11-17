@@ -5,7 +5,52 @@ import { CategoriesService } from './categories.service';
 
 describe('CategoriesService', () => {
   let service: CategoriesService;
-  const categories = { list: jest.fn(), create: jest.fn() };
+  const categories = {
+    list: jest.fn(),
+    create: jest.fn(),
+    existsActive: jest.fn(),
+    countActiveProducts: jest.fn(),
+    softDelete: jest.fn(),
+  };
+
+  const statusOf = async (promise: Promise<unknown>) => {
+    try {
+      await promise;
+    } catch (err) {
+      return ((err as RpcException).getError() as { status: number }).status;
+    }
+    throw new Error('expected the promise to reject');
+  };
+
+  describe('remove', () => {
+    beforeEach(() => {
+      categories.existsActive.mockResolvedValue(true);
+      categories.countActiveProducts.mockResolvedValue(0);
+      categories.softDelete.mockResolvedValue(true);
+    });
+
+    it('soft-deletes a category without active products', async () => {
+      await service.remove('cat-1');
+      expect(categories.softDelete).toHaveBeenCalledWith('cat-1');
+    });
+
+    it('answers 404 for a missing or already deleted category', async () => {
+      categories.existsActive.mockResolvedValue(false);
+      expect(await statusOf(service.remove('cat-x'))).toBe(404);
+      expect(categories.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('answers 409 while active products use it', async () => {
+      categories.countActiveProducts.mockResolvedValue(3);
+      expect(await statusOf(service.remove('cat-1'))).toBe(409);
+      expect(categories.softDelete).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 when it was deleted in between', async () => {
+      categories.softDelete.mockResolvedValue(false);
+      expect(await statusOf(service.remove('cat-1'))).toBe(404);
+    });
+  });
 
   beforeEach(async () => {
     jest.clearAllMocks();

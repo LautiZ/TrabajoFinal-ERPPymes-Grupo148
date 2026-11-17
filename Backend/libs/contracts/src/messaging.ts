@@ -23,6 +23,7 @@ export const ERP_PATTERNS = {
   ADJUST_STOCK: 'erp.products.adjust-stock',
   LIST_CATEGORIES: 'erp.categories.list',
   CREATE_CATEGORY: 'erp.categories.create',
+  DELETE_CATEGORY: 'erp.categories.delete',
 } as const;
 
 export const PAYMENTS_PATTERNS = {

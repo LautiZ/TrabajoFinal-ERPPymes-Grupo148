@@ -24,6 +24,22 @@ export class CategoriesRepository {
     return count > 0;
   }
 
+  countActiveProducts(id: string): Promise<number> {
+    return this.prisma.product.count({
+      where: { categoryId: id, deleted: false },
+    });
+  }
+
+  // Logical delete; false when the category does not exist or is already deleted.
+  // Frees the name: the unique index only covers non-deleted categories (RN-19)
+  async softDelete(id: string): Promise<boolean> {
+    const { count } = await this.prisma.category.updateMany({
+      where: { id, deleted: false },
+      data: { deleted: true },
+    });
+    return count > 0;
+  }
+
   // Returns null when an active category already has that name (RN-19)
   async create(data: CreateCategoryDto): Promise<CategoryView | null> {
     try {

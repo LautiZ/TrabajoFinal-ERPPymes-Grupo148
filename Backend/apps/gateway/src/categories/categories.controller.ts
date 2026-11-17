@@ -1,14 +1,32 @@
-import { Body, Controller, Get, Inject, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { CreateCategoryDto, ERP_PATTERNS, ERP_SERVICE } from '@app/contracts';
+import {
+  CategoryIdMessage,
+  CreateCategoryDto,
+  ERP_PATTERNS,
+  ERP_SERVICE,
+} from '@app/contracts';
 import { sendRpc } from '../common/send-rpc';
 import { CategoryResponseDto } from './dto/category-response.dto';
 
@@ -40,6 +58,21 @@ export class CategoriesController {
       this.erpClient,
       ERP_PATTERNS.CREATE_CATEGORY,
       dto,
+    );
+  }
+
+  /** Logical delete; rejected while active products use the category. Its name can be reused afterwards */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Category deleted' })
+  @ApiBadRequestResponse({ description: 'Invalid id' })
+  @ApiNotFoundResponse({ description: 'Category not found or already deleted' })
+  @ApiConflictResponse({ description: 'Category has active products' })
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await sendRpc<void, CategoryIdMessage>(
+      this.erpClient,
+      ERP_PATTERNS.DELETE_CATEGORY,
+      { id },
     );
   }
 }

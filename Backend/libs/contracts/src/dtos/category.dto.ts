@@ -1,5 +1,11 @@
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -17,6 +23,11 @@ export class CreateCategoryDto {
   @IsString()
   @MaxLength(255)
   description?: string;
+}
+
+export class CategoryIdMessage {
+  @IsUUID()
+  id!: string;
 }
 
 export interface CategoryView {
