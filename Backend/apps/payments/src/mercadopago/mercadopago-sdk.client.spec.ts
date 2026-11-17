@@ -19,8 +19,8 @@ const input = {
   externalReference: 'sale-1',
   idempotencyKey: 'payment-1',
   items: [
-    { id: 'p-1', title: 'Yerba', quantity: 2, unitPrice: 1500.5 },
-    { id: 'p-2', title: 'Queso', quantity: 1, unitPrice: 0.1 },
+    { code: 'YER-1', title: 'Yerba', quantity: 2, unitPrice: 1500.5 },
+    { code: 'QUE-1', title: 'Queso', quantity: 1, unitPrice: 0.1 },
   ],
   backUrls: {
     success: 'https://front.test/payments/success',
@@ -47,7 +47,7 @@ describe('MercadoPagoSdkClient', () => {
   it('configures the SDK with the access token and a timeout', () => {
     expect(MercadoPagoConfig).toHaveBeenCalledWith({
       accessToken: 'APP_USR-token',
-      options: { timeout: 5000 },
+      options: { timeout: 5000, maxRetries: 1 },
     });
   });
 
@@ -71,13 +71,13 @@ describe('MercadoPagoSdkClient', () => {
           total_amount: '3001.10',
           items: [
             {
-              external_code: 'p-1',
+              external_code: 'YER-1',
               title: 'Yerba',
               quantity: 2,
               unit_price: '1500.50',
             },
             {
-              external_code: 'p-2',
+              external_code: 'QUE-1',
               title: 'Queso',
               quantity: 1,
               unit_price: '0.10',
@@ -94,6 +94,18 @@ describe('MercadoPagoSdkClient', () => {
         },
         requestOptions: { idempotencyKey: 'payment-1' },
       });
+    });
+
+    // Regression: the API rejects external_code longer than 30 (a UUID is 36)
+    it('cuts item codes to the 30 characters Mercado Pago accepts', async () => {
+      const code = 'A'.repeat(50);
+      await client.createCheckout({
+        ...input,
+        items: [{ code, title: 'Yerba', quantity: 1, unitPrice: 10 }],
+      });
+
+      const { body } = mockOrderCreate.mock.calls[0][0];
+      expect(body.items[0].external_code).toBe('A'.repeat(30));
     });
 
     it('omits auto return when it is disabled', async () => {

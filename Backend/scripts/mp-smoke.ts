@@ -24,8 +24,8 @@ const run = async () => {
     externalReference: `smoke-${Date.now()}`,
     idempotencyKey: randomUUID(),
     items: [
-      { id: 'p-1', title: 'Yerba 1kg', quantity: 2, unitPrice: 1500.5 },
-      { id: 'p-2', title: 'Queso', quantity: 1, unitPrice: 999.99 },
+      { code: 'YER-1KG', title: 'Yerba 1kg', quantity: 2, unitPrice: 1500.5 },
+      { code: 'QUE-CRE', title: 'Queso', quantity: 1, unitPrice: 999.99 },
     ],
     backUrls: {
       success: 'https://example.com/success',
