@@ -13,6 +13,7 @@ import { CurrentUser } from './../src/auth/current-user.decorator';
 import { Roles } from './../src/auth/roles.decorator';
 import { configureApp } from './../src/config/configure-app';
 import { envs } from './../src/config/envs';
+import { setupSwagger } from './../src/config/setup-swagger';
 
 @Controller('e2e-protected')
 class ProtectedController {
@@ -316,5 +317,53 @@ describe('Gateway login rate limit (e2e)', () => {
     for (let i = 0; i <= envs.LOGIN_THROTTLE_LIMIT; i++) {
       await request(server).get('/health').expect(200);
     }
+  });
+});
+
+describe('Gateway Swagger docs (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(AppService)
+      .useValue({ checkServices: jest.fn() })
+      .overrideProvider(AUTH_SERVICE)
+      .useValue({ send: jest.fn() })
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    configureApp(app);
+    setupSwagger(app);
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  // ts-jest does not run the Swagger CLI plugin, so DTO schemas are checked on the real build
+  it('serves the OpenAPI spec without a token, with prefixed routes and bearer auth', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/docs-json')
+      .expect(200);
+
+    const spec = res.body as {
+      paths: Record<string, unknown>;
+      security: unknown[];
+    };
+    expect(Object.keys(spec.paths)).toEqual(
+      expect.arrayContaining([
+        '/api/auth/login',
+        '/api/auth/logout',
+        '/api/users',
+      ]),
+    );
+    expect(spec.security).toEqual([{ bearer: [] }]);
+  });
+
+  it('serves the Swagger UI without a token', async () => {
+    await request(app.getHttpServer()).get('/api/docs').expect(200);
   });
 });
