@@ -1,16 +1,19 @@
 import { Controller, Get, INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
+import { EMPTY, of, throwError } from 'rxjs';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { AUTH_PATTERNS, AUTH_SERVICE } from '@app/contracts';
 // Interfaces in decorated signatures need `import type` (isolatedModules + emitDecoratorMetadata)
 import type { AuthUser } from '@app/contracts';
 import { AppModule } from './../src/app.module';
 import { AppService } from './../src/app.service';
 import { CurrentUser } from './../src/auth/current-user.decorator';
 import { Roles } from './../src/auth/roles.decorator';
-import { configureApp } from '../src/config/configure-app';
-import { EMPTY, of, throwError } from 'rxjs';
-import { AUTH_PATTERNS, AUTH_SERVICE } from '@app/contracts';
+import { configureApp } from './../src/config/configure-app';
+import { envs } from './../src/config/envs';
+import { setupSwagger } from './../src/config/setup-swagger';
 
 @Controller('e2e-protected')
 class ProtectedController {
@@ -40,6 +43,9 @@ describe('Gateway (e2e)', () => {
       .useValue(appService)
       .overrideProvider(AUTH_SERVICE)
       .useValue(authClient)
+      // Rate limiting is tested in its own app below, with a fresh counter
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -257,5 +263,107 @@ describe('Gateway (e2e)', () => {
         .set('Authorization', auth)
         .expect(401);
     });
+  });
+});
+
+describe('Gateway login rate limit (e2e)', () => {
+  let app: INestApplication<App>;
+  const appService = { checkServices: jest.fn() };
+  const authClient = { send: jest.fn() };
+
+  // Own app instance: the throttler counter lives in memory, so it starts at zero
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(AppService)
+      .useValue(appService)
+      .overrideProvider(AUTH_SERVICE)
+      .useValue(authClient)
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    configureApp(app);
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('answers 429 once the attempts run out, without reaching Auth', async () => {
+    authClient.send.mockReturnValue(
+      throwError(() => ({ status: 401, message: 'Invalid credentials' })),
+    );
+    const attempt = () =>
+      request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: 'ana@pyme.test', password: 'wrong' });
+
+    for (let i = 0; i < envs.LOGIN_THROTTLE_LIMIT; i++) {
+      await attempt().expect(401);
+    }
+    await attempt().expect(429);
+
+    // The blocked attempt never reached Auth, so argon2 never ran for it
+    expect(authClient.send).toHaveBeenCalledTimes(envs.LOGIN_THROTTLE_LIMIT);
+  });
+
+  it('does not limit routes without the guard', async () => {
+    const health = { auth: 'up', erp: 'up', payments: 'up' };
+    appService.checkServices.mockResolvedValue(health);
+    const server = app.getHttpServer();
+
+    for (let i = 0; i <= envs.LOGIN_THROTTLE_LIMIT; i++) {
+      await request(server).get('/health').expect(200);
+    }
+  });
+});
+
+describe('Gateway Swagger docs (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(AppService)
+      .useValue({ checkServices: jest.fn() })
+      .overrideProvider(AUTH_SERVICE)
+      .useValue({ send: jest.fn() })
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    configureApp(app);
+    setupSwagger(app);
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  // ts-jest does not run the Swagger CLI plugin, so DTO schemas are checked on the real build
+  it('serves the OpenAPI spec without a token, with prefixed routes and bearer auth', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/docs-json')
+      .expect(200);
+
+    const spec = res.body as {
+      paths: Record<string, unknown>;
+      security: unknown[];
+    };
+    expect(Object.keys(spec.paths)).toEqual(
+      expect.arrayContaining([
+        '/api/auth/login',
+        '/api/auth/logout',
+        '/api/users',
+      ]),
+    );
+    expect(spec.security).toEqual([{ bearer: [] }]);
+  });
+
+  it('serves the Swagger UI without a token', async () => {
+    await request(app.getHttpServer()).get('/api/docs').expect(200);
   });
 });

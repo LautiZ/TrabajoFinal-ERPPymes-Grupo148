@@ -25,6 +25,10 @@ model Payment {
   id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   paymentState PaymentState @default(Pending) @map("payment_state")
   mpPaymentId  String?      @unique(map: "uq_payments_mp_payment_id") @map("mp_payment_id") @db.VarChar
+  // Mercado Pago checkout preference: one per payment attempt
+  preferenceId String?      @unique(map: "uq_payments_preference_id") @map("preference_id") @db.VarChar
+  // Checkout URL, stored so a pending payment can be resumed without calling Mercado Pago again
+  initPoint    String?      @map("init_point") @db.VarChar
   amount       Decimal      @db.Decimal(12, 2)
   // Cross-service reference to erp.sales.id: no FK on purpose
   saleId       String       @map("sale_id") @db.Uuid
