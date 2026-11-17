@@ -48,6 +48,10 @@ export const MAX_QUANTITY = 999_999_999.999;
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
+// Query params arrive as strings. Not @Type(() => Boolean): Boolean('false') is true
+const toBoolean = ({ value }: { value: unknown }) =>
+  value === 'true' ? true : value === 'false' ? false : value;
+
 export class ListProductsDto extends PaginationDto {
   /** Matches name or SKU (case-insensitive) */
   @IsOptional()
@@ -72,6 +76,12 @@ export class ListProductsDto extends PaginationDto {
   @IsOptional()
   @IsIn(STOCK_STATUS_FILTERS)
   stockStatus?: StockStatusFilter;
+
+  /** true: only active products (the POS sends it); false: only paused ones; omitted: both */
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  active?: boolean;
 
   /**
    * Deprecated and ignored: the threshold is now a field of each product.

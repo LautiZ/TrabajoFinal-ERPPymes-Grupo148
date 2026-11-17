@@ -24,6 +24,9 @@ export const ERP_PATTERNS = {
   LIST_CATEGORIES: 'erp.categories.list',
   CREATE_CATEGORY: 'erp.categories.create',
   DELETE_CATEGORY: 'erp.categories.delete',
+  CREATE_SALE: 'erp.sales.create',
+  LIST_SALES: 'erp.sales.list',
+  GET_SALE: 'erp.sales.get',
 } as const;
 
 export const PAYMENTS_PATTERNS = {
