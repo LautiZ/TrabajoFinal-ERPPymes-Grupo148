@@ -1,0 +1,70 @@
+<div class="date-filter" role="region" aria-label="Filtro por rango de fechas">
+  <div class="date-filter__presets" role="group" aria-label="Atajos de fechas">
+    <button
+      type="button"
+      class="preset-btn"
+      [class.preset-btn--active]="activePreset() === 'today'"
+      (click)="selectPreset('today')"
+      data-testid="preset-today"
+    >
+      Hoy
+    </button>
+    <button
+      type="button"
+      class="preset-btn"
+      [class.preset-btn--active]="activePreset() === 'last7days'"
+      (click)="selectPreset('last7days')"
+      data-testid="preset-last7days"
+    >
+      7 días
+    </button>
+    <button
+      type="button"
+      class="preset-btn"
+      [class.preset-btn--active]="activePreset() === 'currentMonth'"
+      (click)="selectPreset('currentMonth')"
+      data-testid="preset-currentMonth"
+    >
+      Mes actual
+    </button>
+    <button
+      type="button"
+      class="preset-btn"
+      [class.preset-btn--active]="activePreset() === 'previousMonth'"
+      (click)="selectPreset('previousMonth')"
+      data-testid="preset-previousMonth"
+    >
+      Mes anterior
+    </button>
+  </div>
+
+  <div class="date-filter__inputs">
+    <label class="date-input-group">
+      <span>Desde</span>
+      <input
+        type="date"
+        [ngModel]="customFrom()"
+        (ngModelChange)="onCustomDateChange($event, customTo())"
+        [max]="customTo()"
+        data-testid="input-date-from"
+      />
+    </label>
+
+    <label class="date-input-group">
+      <span>Hasta</span>
+      <input
+        type="date"
+        [ngModel]="customTo()"
+        (ngModelChange)="onCustomDateChange(customFrom(), $event)"
+        [min]="customFrom()"
+        data-testid="input-date-to"
+      />
+    </label>
+  </div>
+
+  @if (isInvalidRange()) {
+    <p class="date-filter__error" role="alert" data-testid="date-range-error">
+      La fecha "Desde" debe ser menor o igual a "Hasta".
+    </p>
+  }
+</div>

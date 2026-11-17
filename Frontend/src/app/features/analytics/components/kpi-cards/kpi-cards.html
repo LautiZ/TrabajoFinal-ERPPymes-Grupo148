@@ -1,0 +1,70 @@
+@if (loading()) {
+  <div class="kpi-grid" data-testid="kpi-skeleton">
+    @for (item of [1, 2, 3, 4, 5, 6]; track item) {
+      <div class="kpi-card kpi-card--skeleton" aria-busy="true">
+        <div class="skeleton-line skeleton-line--title"></div>
+        <div class="skeleton-line skeleton-line--value"></div>
+        <div class="skeleton-line skeleton-line--badge"></div>
+      </div>
+    }
+  </div>
+} @else if (error()) {
+  <div class="kpi-state kpi-state--error" role="alert" data-testid="kpi-error">
+    <p>{{ error() }}</p>
+    <button type="button" class="retry-btn" (click)="retry()" data-testid="kpi-retry-btn">
+      Reintentar
+    </button>
+  </div>
+} @else {
+  @if (isEmpty()) {
+    <div class="kpi-empty-banner" data-testid="kpi-empty-state">
+      Sin ventas registradas en el período seleccionado.
+    </div>
+  }
+
+  <div class="kpi-grid" data-testid="kpi-cards-grid">
+    @for (card of salesKpis(); track card.id) {
+      <article class="kpi-card" [attr.data-testid]="'kpi-card-' + card.id">
+        <span class="kpi-card__label">{{ card.label }}</span>
+        <strong class="kpi-card__value">{{ card.formattedValue }}</strong>
+        <span
+          class="kpi-card__variation"
+          [class.kpi-card__variation--positive]="card.trend === 'positive'"
+          [class.kpi-card__variation--negative]="card.trend === 'negative'"
+          [class.kpi-card__variation--neutral]="card.trend === 'neutral'"
+          [attr.data-testid]="'kpi-variation-' + card.id"
+        >
+          {{ card.formattedVariation }} vs. período anterior
+        </span>
+      </article>
+    }
+
+    <!-- Tarjeta de Valorización del Inventario -->
+    <article class="kpi-card" data-testid="kpi-card-inventory-valuation">
+      <span class="kpi-card__label">Valorización del inventario</span>
+      <strong class="kpi-card__value">{{ formattedInventoryValuation() }}</strong>
+      <span class="kpi-card__subtext">
+        {{ formatNumber(inventory()?.totalUnits ?? 0) }} unidades totales en stock
+      </span>
+    </article>
+
+    <!-- Tarjeta de Productos con Stock Bajo -->
+    <article class="kpi-card" data-testid="kpi-card-low-stock">
+      <span class="kpi-card__label">Productos con stock bajo</span>
+      <strong
+        class="kpi-card__value"
+        [class.kpi-card__value--warning]="(inventory()?.lowStockCount ?? 0) > 0"
+      >
+        {{ formatNumber(inventory()?.lowStockCount ?? 0) }}
+      </strong>
+      <a
+        routerLink="/inventory"
+        [queryParams]="{ lowStock: true }"
+        class="kpi-card__link"
+        data-testid="low-stock-link"
+      >
+        Ver inventario con stock bajo →
+      </a>
+    </article>
+  </div>
+}

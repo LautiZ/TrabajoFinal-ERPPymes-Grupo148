@@ -1,0 +1,8 @@
+@use '../../styles/auth-page';
+
+.auth__intro {
+  margin-bottom: 1rem !important;
+  color: var(--app-text-muted);
+  font: var(--mat-sys-body-medium);
+  text-align: left;
+}

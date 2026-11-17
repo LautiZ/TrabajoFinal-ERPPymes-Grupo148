@@ -1,0 +1,137 @@
+:host {
+  display: block;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.kpi-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface-container-low);
+
+  &__label {
+    font: var(--mat-sys-label-large);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &__value {
+    font: var(--mat-sys-headline-medium);
+    color: var(--mat-sys-on-surface);
+
+    &--warning {
+      color: var(--mat-sys-error);
+    }
+  }
+
+  &__variation {
+    font: var(--mat-sys-label-medium);
+    font-weight: 600;
+
+    &--positive {
+      color: var(--mat-sys-primary);
+    }
+
+    &--negative {
+      color: var(--mat-sys-error);
+    }
+
+    &--neutral {
+      color: var(--mat-sys-on-surface-variant);
+    }
+  }
+
+  &__subtext {
+    font: var(--mat-sys-label-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &__link {
+    font: var(--mat-sys-label-medium);
+    font-weight: 600;
+    color: var(--mat-sys-primary);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &--skeleton {
+    min-height: 120px;
+  }
+}
+
+.skeleton-line {
+  border-radius: 0.25rem;
+  background: var(--mat-sys-outline-variant);
+  animation: pulse 1.5s infinite ease-in-out;
+
+  &--title {
+    width: 55%;
+    height: 1rem;
+  }
+
+  &--value {
+    width: 75%;
+    height: 2rem;
+  }
+
+  &--badge {
+    width: 45%;
+    height: 0.875rem;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.kpi-state {
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--mat-sys-error);
+  background: var(--mat-sys-surface-container-low);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--mat-sys-on-surface);
+
+  p {
+    margin: 0;
+  }
+}
+
+.kpi-empty-banner {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface-container-low);
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+  text-align: center;
+}

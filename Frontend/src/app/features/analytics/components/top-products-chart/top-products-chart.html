@@ -1,0 +1,70 @@
+<article class="chart-card" data-testid="top-products-card">
+  <header class="chart-card__header">
+    <div>
+      <h2 class="chart-card__title">Productos más vendidos</h2>
+      <p class="chart-card__subtitle">Top por ingresos y unidades</p>
+    </div>
+
+    <div class="btn-group" role="group" aria-label="Criterio de ranking">
+      <button
+        type="button"
+        class="control-btn"
+        [class.control-btn--active]="metric() === 'revenue'"
+        (click)="setMetric('revenue')"
+        data-testid="metric-revenue"
+      >
+        Ingresos
+      </button>
+      <button
+        type="button"
+        class="control-btn"
+        [class.control-btn--active]="metric() === 'units'"
+        (click)="setMetric('units')"
+        data-testid="metric-units"
+      >
+        Unidades
+      </button>
+    </div>
+  </header>
+
+  <div class="chart-card__body">
+    @if (loading()) {
+      <div class="chart-skeleton" aria-busy="true" data-testid="top-products-loading"></div>
+    } @else if (error()) {
+      <div class="chart-state chart-state--error" role="alert" data-testid="top-products-error">
+        <p>{{ error() }}</p>
+        <button type="button" class="retry-btn" (click)="retry()" data-testid="top-products-retry">
+          Reintentar
+        </button>
+      </div>
+    } @else if (isEmpty()) {
+      <div class="chart-state chart-state--empty" data-testid="top-products-empty">
+        <p>Sin ventas en el período</p>
+      </div>
+    } @else {
+      <div class="top-products-content" data-testid="top-products-content">
+        <div class="chart-canvas-wrapper">
+          @if (isBrowser) {
+            <canvas
+              baseChart
+              [data]="chartData()"
+              [options]="chartOptions"
+              type="bar"
+            ></canvas>
+          }
+        </div>
+
+        <ul class="top-products-list" data-testid="top-products-list">
+          @for (item of items(); track item.productId) {
+            <li class="top-products-list__item">
+              <span class="top-products-list__name">{{ item.name }}</span>
+              <span class="top-products-list__meta">
+                {{ item.unitsSold }} u. · <strong>{{ formatCurrency(item.revenue) }}</strong>
+              </span>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+</article>
