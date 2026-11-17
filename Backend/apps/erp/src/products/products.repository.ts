@@ -9,6 +9,7 @@ import type {
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { isUniqueViolation } from '../prisma/prisma-errors';
+import { applyStockDelta } from '../stock/apply-stock-delta';
 
 const PRODUCT_SELECT = {
   id: true,
@@ -142,9 +143,8 @@ export class ProductsRepository {
 
   /**
    * Applies a signed stock change and records its Adjustment movement in one
-   * transaction. The stock check lives in the UPDATE itself, so two concurrent
-   * outcomes cannot both pass a stale read (RN-02). Returns null when the
-   * product is missing/deleted or the stock is not enough.
+   * transaction. Paused products can be adjusted; deleted ones cannot (RN-04).
+   * Returns null when the product is missing/deleted or the stock is not enough.
    */
   async adjustStock(
     id: string,
@@ -153,15 +153,7 @@ export class ProductsRepository {
     userId: string,
   ): Promise<ProductView | null> {
     return this.prisma.$transaction(async (tx) => {
-      const { count } = await tx.product.updateMany({
-        where: {
-          id,
-          deleted: false,
-          ...(delta < 0 ? { stock: { gte: -delta } } : {}),
-        },
-        data: { stock: { increment: delta } },
-      });
-      if (count === 0) return null;
+      if (!(await applyStockDelta(tx, id, delta))) return null;
 
       await tx.stockMovement.create({
         data: {
@@ -184,10 +176,12 @@ export class ProductsRepository {
     search,
     categoryId,
     stockStatus,
+    active,
   }: ListProductsDto): Prisma.ProductWhereInput {
     return {
       deleted: false,
       ...(categoryId && { categoryId }),
+      ...(active !== undefined && { active }),
       ...(search && {
         OR: [
           { name: { contains: search, mode: 'insensitive' } },
