@@ -11,6 +11,8 @@ import { RpcToHttpExceptionFilter } from './common/rpc-to-http-exception.filter'
 import { AuthController } from './auth/auth.controller';
 import { UsersController } from './users/users.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ProductsController } from './products/products.controller';
+import { CategoriesController } from './categories/categories.controller';
 
 @Module({
   imports: [
@@ -36,7 +38,13 @@ import { ThrottlerModule } from '@nestjs/throttler';
       },
     ]),
   ],
-  controllers: [AppController, AuthController, UsersController],
+  controllers: [
+    AppController,
+    AuthController,
+    UsersController,
+    ProductsController,
+    CategoriesController,
+  ],
   providers: [
     AppService,
     { provide: APP_FILTER, useClass: RpcToHttpExceptionFilter },

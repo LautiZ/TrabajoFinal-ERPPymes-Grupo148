@@ -11,3 +11,5 @@ export * from './dtos/logout.dto';
 export * from './auth-user';
 export * from './roles';
 export * from './dtos/create-user.dto';
+export * from './dtos/product.dto';
+export * from './dtos/category.dto';
