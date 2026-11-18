@@ -1,11 +1,17 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { MercadoPagoConfig, Order } from 'mercadopago';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  InvalidWebhookSignatureError,
+  MercadoPagoConfig,
+  Order,
+  WebhookSignatureValidator,
+} from 'mercadopago';
 import { rpcError } from '../common/rpc-error';
 import { translateMercadoPagoError } from './mercadopago-errors';
 import {
   CreateCheckoutInput,
   CreatedCheckout,
   MercadoPagoClient,
+  NotificationSignature,
   ProviderOrder,
 } from './mercadopago.client';
 
@@ -14,22 +20,37 @@ export const MERCADOPAGO_OPTIONS = Symbol('MERCADOPAGO_OPTIONS');
 export interface MercadoPagoOptions {
   accessToken: string;
   timeoutMs: number;
+  // Secret signature of the app's webhooks; empty means every notification is rejected
+  webhookSecret: string;
 }
 
 // The API rejects longer codes with a 400
 const MAX_EXTERNAL_CODE_LENGTH = 30;
 
 const toCents = (amount: number) => Math.round(amount * 100);
+
+// An order lists every card attempt (a rejected card, then the approved one):
+// the payment that counts is the approved one, else the latest attempt
+const pickPaymentId = (
+  payments: { id?: string; status?: string }[] = [],
+): string | null =>
+  (
+    payments.find((p) => p.status === 'processed' || p.status === 'approved') ??
+    payments.at(-1)
+  )?.id ?? null;
 const formatCents = (cents: number) => (cents / 100).toFixed(2);
 
 // Adapter over the official SDK (Orders API). Every call goes through `call`,
 // so SDK errors always leave this class already translated to RPC errors.
 @Injectable()
 export class MercadoPagoSdkClient extends MercadoPagoClient {
+  private readonly logger = new Logger(MercadoPagoSdkClient.name);
   private readonly orders: Order;
+  private readonly webhookSecret: string;
 
   constructor(@Inject(MERCADOPAGO_OPTIONS) options: MercadoPagoOptions) {
     super();
+    this.webhookSecret = options.webhookSecret;
     this.orders = new Order(
       new MercadoPagoConfig({
         accessToken: options.accessToken,
@@ -89,7 +110,39 @@ export class MercadoPagoSdkClient extends MercadoPagoClient {
       externalReference: order.external_reference ?? null,
       totalAmount: Number(order.total_amount ?? 0),
       paidAmount: Number(order.total_paid_amount ?? 0),
+      paymentId: pickPaymentId(order.transactions?.payments),
     };
+  }
+
+  isAuthenticNotification({
+    dataId,
+    xSignature,
+    xRequestId,
+  }: NotificationSignature): boolean {
+    if (!this.webhookSecret) {
+      this.logger.error('MP_WEBHOOK_SECRET is not set: notification rejected');
+      return false;
+    }
+    try {
+      WebhookSignatureValidator.validate({
+        xSignature,
+        xRequestId,
+        // Mercado Pago signs alphanumeric ids (ORD01...) in lowercase, but sends
+        // them uppercase; the SDK does not convert them
+        dataId: dataId?.toLowerCase(),
+        secret: this.webhookSecret,
+        // No timestamp tolerance on purpose: MP docs disagree on whether ts is
+        // in seconds or milliseconds, and a replay is harmless anyway because
+        // the state is always read again from the Orders API
+      });
+      return true;
+    } catch (error) {
+      if (!(error instanceof InvalidWebhookSignatureError)) throw error;
+      this.logger.warn(
+        `Rejected notification (${error.reason}, request ${error.requestId ?? '-'})`,
+      );
+      return false;
+    }
   }
 
   private async call<T>(request: () => Promise<T>): Promise<T> {

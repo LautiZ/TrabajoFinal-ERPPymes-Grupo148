@@ -1,6 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { SALE_NOT_PAYABLE } from '@app/contracts';
-import type { CreatePaymentDto, PaymentView } from '@app/contracts';
+import type {
+  CreatePaymentDto,
+  PaymentView,
+  SalePaymentMessage,
+} from '@app/contracts';
 import { rpcError } from './common/rpc-error';
 import { SalesClient } from './erp/sales.client';
 import { Payment } from './generated/prisma/client';
@@ -27,7 +31,8 @@ const toView = (payment: Payment): PaymentView => ({
   saleId: payment.saleId,
   amount: Number(payment.amount),
   state: payment.paymentState,
-  checkoutUrl: payment.checkoutUrl,
+  // Only a Pending attempt can still be paid: closed ones hide their checkout
+  checkoutUrl: payment.paymentState === 'Pending' ? payment.checkoutUrl : null,
   createdAt: payment.createdAt,
 });
 
@@ -116,6 +121,14 @@ export class PaymentsService {
       );
       throw err;
     }
+  }
+
+  // What the frontend polls after the buyer returns from Mercado Pago: the
+  // state set by the webhook, never the query params of the return URL
+  async getBySale({ saleId }: SalePaymentMessage): Promise<PaymentView> {
+    const payment = await this.paymentsRepository.findLatestBySale(saleId);
+    if (!payment) throw rpcError(404, 'The sale has no payment');
+    return toView(payment);
   }
 
   // The open payment already has its checkout, or another request is still

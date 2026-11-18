@@ -29,6 +29,9 @@ export type SaleState = (typeof SALE_STATES)[number];
 // Error code the frontend looks for on a 409 (sales/utils/stock-conflict.ts)
 export const INSUFFICIENT_STOCK = 'INSUFFICIENT_STOCK';
 
+// Error code on a 409 when a payment arrives for a sale that was already cancelled
+export const SALE_CANCELLED = 'SALE_CANCELLED';
+
 // A date alone ("2026-11-17") would be read as UTC midnight, which is the day
 // before in Argentina. Requiring time and offset removes the ambiguity.
 const ISO_WITH_OFFSET = /T.+(Z|[+-]\d{2}:\d{2})$/;

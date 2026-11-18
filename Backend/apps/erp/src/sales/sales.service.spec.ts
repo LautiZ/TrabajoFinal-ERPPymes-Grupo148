@@ -1,6 +1,6 @@
 import { RpcException } from '@nestjs/microservices';
 import { Test } from '@nestjs/testing';
-import type { SaleView } from '@app/contracts';
+import { SALE_CANCELLED, type SaleView } from '@app/contracts';
 import { Prisma } from '../generated/prisma/client';
 import { InsufficientStockError, SaleTotalTooLargeError } from './sale-errors';
 import { SalesRepository } from './sales.repository';
@@ -33,6 +33,7 @@ describe('SalesService', () => {
     createSale: jest.fn(),
     list: jest.fn(),
     findById: jest.fn(),
+    markPaid: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -150,6 +151,52 @@ describe('SalesService', () => {
     it('answers 404 for an unknown sale', async () => {
       sales.findById.mockResolvedValue(null);
       expect(await errorOf(service.get('sale-x'))).toMatchObject({
+        status: 404,
+      });
+    });
+  });
+
+  describe('markPaid', () => {
+    const paid = { id: 'sale-1', currentState: 'Paid' } as SaleView;
+
+    it('moves an Ordered sale to Paid and returns it', async () => {
+      sales.markPaid.mockResolvedValue(true);
+      sales.findById.mockResolvedValue(paid);
+
+      expect(await service.markPaid('sale-1')).toBe(paid);
+      expect(sales.markPaid).toHaveBeenCalledWith('sale-1');
+    });
+
+    it('is safe to repeat: an already Paid sale is returned unchanged', async () => {
+      sales.markPaid.mockResolvedValue(false);
+      sales.findById.mockResolvedValue(paid);
+
+      expect(await service.markPaid('sale-1')).toBe(paid);
+    });
+
+    it('also accepts a sale that moved on to Dispatched', async () => {
+      const dispatched = { ...paid, currentState: 'Dispatched' } as SaleView;
+      sales.markPaid.mockResolvedValue(false);
+      sales.findById.mockResolvedValue(dispatched);
+
+      expect(await service.markPaid('sale-1')).toBe(dispatched);
+    });
+
+    it('answers 409 SALE_CANCELLED for a cancelled sale', async () => {
+      sales.markPaid.mockResolvedValue(false);
+      sales.findById.mockResolvedValue({ ...paid, currentState: 'Cancelled' });
+
+      expect(await errorOf(service.markPaid('sale-1'))).toMatchObject({
+        status: 409,
+        code: SALE_CANCELLED,
+      });
+    });
+
+    it('answers 404 for an unknown sale', async () => {
+      sales.markPaid.mockResolvedValue(false);
+      sales.findById.mockResolvedValue(null);
+
+      expect(await errorOf(service.markPaid('sale-x'))).toMatchObject({
         status: 404,
       });
     });

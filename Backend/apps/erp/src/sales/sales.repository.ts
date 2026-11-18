@@ -195,6 +195,36 @@ export class SalesRepository {
     return [rows.map(toSummary), total];
   }
 
+  /**
+   * Moves the sale from Ordered to Paid in one transaction: state, receipt
+   * number and history step (RN-09). The conditional update locks the row,
+   * so of two concurrent calls only one sees count 1; the other gets false.
+   * The receipt number is drawn only after the state changed, so a repeated
+   * call never burns a number. nextval is not rolled back, though: if this
+   * transaction fails after it, that number is lost (rare, accepted gap).
+   */
+  markPaid(id: string): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.sale.updateMany({
+        where: { id, currentState: 'Ordered' },
+        data: { currentState: 'Paid' },
+      });
+      if (count === 0) return false;
+
+      const [{ next }] = await tx.$queryRaw<{ next: number }[]>`
+        SELECT nextval('erp.sales_receipt_number_seq')::int AS next`;
+      await tx.sale.update({
+        where: { id },
+        data: {
+          receiptNumber: next,
+          // System change: no user behind a payment webhook (RN-10)
+          history: { create: { saleState: 'Paid', userId: null } },
+        },
+      });
+      return true;
+    });
+  }
+
   async findById(id: string): Promise<SaleView | null> {
     const row = await this.prisma.sale.findUnique({
       where: { id },

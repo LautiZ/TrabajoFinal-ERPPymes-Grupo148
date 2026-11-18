@@ -64,6 +64,7 @@ describe('PaymentsService', () => {
     reservePending: jest.fn(),
     attachCheckout: jest.fn(),
     releaseIfUnattached: jest.fn(),
+    findLatestBySale: jest.fn(),
   };
   const mercadoPago = { createCheckout: jest.fn(), getOrder: jest.fn() };
 
@@ -211,6 +212,35 @@ describe('PaymentsService', () => {
 
       await expect(service.create({ saleId: 'sale-1' })).rejects.toBe(notFound);
       expect(payments.findPendingBySale).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getBySale', () => {
+    // The row keeps its checkout url (DB check), but a paid attempt hides it
+    it('returns the latest payment attempt of the sale', async () => {
+      payments.findLatestBySale.mockResolvedValue(
+        row({
+          paymentState: 'Paid',
+          mpOrderId: 'ORD01',
+          checkoutUrl: view.checkoutUrl,
+        }),
+      );
+
+      await expect(service.getBySale({ saleId: 'sale-1' })).resolves.toEqual({
+        ...view,
+        state: 'Paid',
+        checkoutUrl: null,
+      });
+      expect(payments.findLatestBySale).toHaveBeenCalledWith('sale-1');
+    });
+
+    it('answers 404 when the sale has no payment yet', async () => {
+      payments.findLatestBySale.mockResolvedValue(null);
+
+      expect(await errorOf(service.getBySale({ saleId: 'sale-1' }))).toEqual({
+        status: 404,
+        message: 'The sale has no payment',
+      });
     });
   });
 });

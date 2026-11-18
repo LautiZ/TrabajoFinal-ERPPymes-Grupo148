@@ -27,9 +27,12 @@ export const ERP_PATTERNS = {
   CREATE_SALE: 'erp.sales.create',
   LIST_SALES: 'erp.sales.list',
   GET_SALE: 'erp.sales.get',
+  MARK_SALE_PAID: 'erp.sales.mark-paid',
 } as const;
 
 export const PAYMENTS_PATTERNS = {
   COUNT_PAYMENTS: 'payments.payments.count',
   CREATE_PAYMENT: 'payments.payments.create',
+  GET_SALE_PAYMENT: 'payments.payments.get-by-sale',
+  HANDLE_NOTIFICATION: 'payments.notifications.handle',
 } as const;

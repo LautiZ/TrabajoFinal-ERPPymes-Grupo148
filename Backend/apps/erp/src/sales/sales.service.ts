@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   INSUFFICIENT_STOCK,
   paginate,
+  SALE_CANCELLED,
   type CreateSaleMessage,
   type ListSalesDto,
   type PaginatedResponse,
@@ -53,6 +54,20 @@ export class SalesService {
   async get(id: string): Promise<SaleView> {
     const sale = await this.salesRepository.findById(id);
     if (!sale) throw rpcError(404, 'Sale not found');
+    return sale;
+  }
+
+  // Called by Payments when Mercado Pago confirms the payment. Safe to repeat:
+  // the webhook can arrive several times, and only the first call changes the sale
+  async markPaid(id: string): Promise<SaleView> {
+    const changed = await this.salesRepository.markPaid(id);
+    const sale = await this.get(id);
+    if (!changed && sale.currentState === 'Cancelled') {
+      throw rpcError(409, 'Sale was cancelled before the payment arrived', {
+        code: SALE_CANCELLED,
+      });
+    }
+    // Paid by this call, or already Paid/Dispatched by an earlier one
     return sale;
   }
 

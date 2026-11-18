@@ -18,11 +18,20 @@ const isRpcPayload = (err: unknown): err is { status: number } =>
 export class SalesClient {
   constructor(@Inject(ERP_SERVICE) private readonly client: ClientProxy) {}
 
-  async getSale(id: string): Promise<SaleView> {
+  getSale(id: string): Promise<SaleView> {
+    return this.send(ERP_PATTERNS.GET_SALE, id);
+  }
+
+  // Ordered -> Paid. Safe to repeat: an already Paid sale is answered as is
+  markPaid(id: string): Promise<SaleView> {
+    return this.send(ERP_PATTERNS.MARK_SALE_PAID, id);
+  }
+
+  private async send(pattern: string, id: string): Promise<SaleView> {
     try {
       return await firstValueFrom(
         this.client
-          .send<SaleView, SaleIdMessage>(ERP_PATTERNS.GET_SALE, { id })
+          .send<SaleView, SaleIdMessage>(pattern, { id })
           .pipe(timeout(ERP_TIMEOUT_MS)),
       );
     } catch (err) {

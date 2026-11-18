@@ -26,4 +26,9 @@ export class SalesController {
   get(@Payload() { id }: SaleIdMessage) {
     return this.salesService.get(id);
   }
+
+  @MessagePattern(ERP_PATTERNS.MARK_SALE_PAID)
+  markPaid(@Payload() { id }: SaleIdMessage) {
+    return this.salesService.markPaid(id);
+  }
 }

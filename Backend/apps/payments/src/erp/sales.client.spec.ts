@@ -59,4 +59,26 @@ describe('SalesClient', () => {
 
     expect((await errorOf(client.getSale('sale-1'))).status).toBe(503);
   });
+
+  it('asks the ERP to mark the sale as paid', async () => {
+    send.mockReturnValue(of({ id: 'sale-1', currentState: 'Paid' }));
+
+    await expect(client.markPaid('sale-1')).resolves.toMatchObject({
+      currentState: 'Paid',
+    });
+    expect(send).toHaveBeenCalledWith(ERP_PATTERNS.MARK_SALE_PAID, {
+      id: 'sale-1',
+    });
+  });
+
+  it('keeps the ERP status and code when marking as paid fails', async () => {
+    send.mockReturnValue(
+      throwError(() => ({ status: 409, code: 'SALE_CANCELLED', message: 'x' })),
+    );
+
+    expect(await errorOf(client.markPaid('sale-1'))).toMatchObject({
+      status: 409,
+      code: 'SALE_CANCELLED',
+    });
+  });
 });

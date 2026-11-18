@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Payment } from '../generated/prisma/client';
+import { Payment, PaymentState } from '../generated/prisma/client';
 import { CreatedCheckout } from '../mercadopago/mercadopago.client';
 import { isUniqueViolation } from '../prisma/prisma-errors';
 import { PrismaService } from '../prisma/prisma.service';
@@ -37,6 +37,45 @@ export class PaymentsRepository {
       where: { id },
       data: { mpOrderId: checkout.orderId, checkoutUrl: checkout.checkoutUrl },
     });
+  }
+
+  findByOrderId(mpOrderId: string): Promise<Payment | null> {
+    return this.prisma.payment.findUnique({ where: { mpOrderId } });
+  }
+
+  // The latest attempt is the one the frontend polls (RN-11)
+  findLatestBySale(saleId: string): Promise<Payment | null> {
+    return this.prisma.payment.findFirst({
+      where: { saleId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // Another attempt of the same sale that was already paid (double charge)
+  findOtherPaid(saleId: string, excludeId: string): Promise<Payment | null> {
+    return this.prisma.payment.findFirst({
+      where: { saleId, paymentState: 'Paid', id: { not: excludeId } },
+    });
+  }
+
+  // Conditional on the current state, so two concurrent notifications cannot
+  // both apply the same change. Returns false when another one already did.
+  // The checkout url is kept: chk_payments_order_checkout_url requires it
+  // while mp_order_id is set. The view hides it once the attempt is closed.
+  async transition(
+    id: string,
+    from: PaymentState[],
+    to: PaymentState,
+    mpPaymentId: string | null,
+  ): Promise<boolean> {
+    const { count } = await this.prisma.payment.updateMany({
+      where: { id, paymentState: { in: from } },
+      data: {
+        paymentState: to,
+        ...(mpPaymentId && { mpPaymentId }),
+      },
+    });
+    return count > 0;
   }
 
   // Deletes a reservation that never got its checkout. Conditional on purpose:
