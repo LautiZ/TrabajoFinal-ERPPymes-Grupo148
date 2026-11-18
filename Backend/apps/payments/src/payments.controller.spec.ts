@@ -1,16 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { PaymentNotificationsService } from './payments/payment-notifications.service';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 
 describe('PaymentsController', () => {
   let paymentsController: PaymentsController;
   const paymentsService = { countPayments: jest.fn(), create: jest.fn() };
+  const notifications = { handle: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
     const app: TestingModule = await Test.createTestingModule({
       controllers: [PaymentsController],
-      providers: [{ provide: PaymentsService, useValue: paymentsService }],
+      providers: [
+        { provide: PaymentsService, useValue: paymentsService },
+        { provide: PaymentNotificationsService, useValue: notifications },
+      ],
     }).compile();
 
     paymentsController = app.get<PaymentsController>(PaymentsController);

@@ -36,10 +36,21 @@ export interface ProviderOrder {
   externalReference: string | null;
   totalAmount: number;
   paidAmount: number;
+  // Id of the payment transaction inside the order; null until the buyer pays
+  paymentId: string | null;
+}
+
+// Raw webhook values used to check that Mercado Pago sent the notification
+export interface NotificationSignature {
+  dataId?: string;
+  xSignature?: string;
+  xRequestId?: string;
 }
 
 export abstract class MercadoPagoClient {
   abstract createCheckout(input: CreateCheckoutInput): Promise<CreatedCheckout>;
 
   abstract getOrder(id: string): Promise<ProviderOrder>;
+
+  abstract isAuthenticNotification(signature: NotificationSignature): boolean;
 }

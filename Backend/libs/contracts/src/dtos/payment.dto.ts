@@ -1,4 +1,4 @@
-import { IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
 // Mirrors the Payments Prisma enum; contracts must not depend on a service's generated client
 export const PAYMENT_STATES = [
@@ -16,6 +16,44 @@ export const SALE_NOT_PAYABLE = 'SALE_NOT_PAYABLE';
 export class CreatePaymentDto {
   @IsUUID()
   saleId!: string;
+}
+
+export class SalePaymentMessage {
+  @IsUUID()
+  saleId!: string;
+}
+
+// What the gateway forwards from a Mercado Pago webhook. Everything is optional
+// because the request is public: the Payments MS decides what is valid, and
+// never trusts these values beyond using dataId to fetch the order again.
+export class PaymentNotificationMessage {
+  /** Notification topic; only "order" is processed */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  type?: string;
+
+  /** Id of the Mercado Pago resource (the order id): ?data.id, else body.data.id */
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  dataId?: string;
+
+  /** ?data.id exactly as received: the only id Mercado Pago signs */
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  signedDataId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  xSignature?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  xRequestId?: string;
 }
 
 // Response shape shared by the Payments MS (producer) and the gateway (docs)

@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { RpcException } from '@nestjs/microservices';
 import { MPConnectionError, MercadoPagoConfig } from 'mercadopago';
 import { MercadoPagoSdkClient } from './mercadopago-sdk.client';
@@ -41,6 +42,7 @@ describe('MercadoPagoSdkClient', () => {
     client = new MercadoPagoSdkClient({
       accessToken: 'APP_USR-token',
       timeoutMs: 5000,
+      webhookSecret: 'webhook-secret',
     });
   });
 
@@ -150,6 +152,7 @@ describe('MercadoPagoSdkClient', () => {
         external_reference: 'sale-1',
         total_amount: '3001.10',
         total_paid_amount: '3001.10',
+        transactions: { payments: [{ id: 'PAY01', status: 'processed' }] },
       });
 
       await expect(client.getOrder('ORD01')).resolves.toEqual({
@@ -159,8 +162,24 @@ describe('MercadoPagoSdkClient', () => {
         externalReference: 'sale-1',
         totalAmount: 3001.1,
         paidAmount: 3001.1,
+        paymentId: 'PAY01',
       });
       expect(mockOrderGet).toHaveBeenCalledWith({ id: 'ORD01' });
+    });
+
+    it('keeps the approved payment when the order lists several attempts', async () => {
+      mockOrderGet.mockResolvedValue({
+        id: 'ORD01',
+        status: 'processed',
+        transactions: {
+          payments: [
+            { id: 'PAY-REJECTED', status: 'failed' },
+            { id: 'PAY-OK', status: 'processed' },
+          ],
+        },
+      });
+
+      expect((await client.getOrder('ORD01')).paymentId).toBe('PAY-OK');
     });
 
     it('fills missing optional fields with neutral values', async () => {
@@ -173,7 +192,56 @@ describe('MercadoPagoSdkClient', () => {
         externalReference: null,
         totalAmount: 0,
         paidAmount: 0,
+        paymentId: null,
       });
+    });
+  });
+
+  describe('isAuthenticNotification', () => {
+    const secret = 'webhook-secret';
+    // HMAC-SHA256(secret, manifest) in hex, as Mercado Pago computes it
+    const sign = (manifest: string) =>
+      createHmac('sha256', secret).update(manifest).digest('hex');
+    const signed = (dataIdInManifest: string) => ({
+      dataId: 'ORD01ABC',
+      xRequestId: 'req-1',
+      xSignature: `ts=1763470000,v1=${sign(
+        `id:${dataIdInManifest};request-id:req-1;ts:1763470000;`,
+      )}`,
+    });
+
+    beforeEach(() => {
+      client = new MercadoPagoSdkClient({
+        accessToken: 'APP_USR-token',
+        timeoutMs: 5000,
+        webhookSecret: secret,
+      });
+    });
+
+    // Regression: MP signs alphanumeric ids in lowercase but sends them uppercase
+    it('accepts a notification signed over the lowercased order id', () => {
+      expect(client.isAuthenticNotification(signed('ord01abc'))).toBe(true);
+    });
+
+    it('rejects a signature computed with another secret', () => {
+      const forged = signed('ord01abc');
+      forged.xSignature = 'ts=1763470000,v1=' + 'f'.repeat(64);
+      expect(client.isAuthenticNotification(forged)).toBe(false);
+    });
+
+    it('rejects a notification without signature', () => {
+      expect(
+        client.isAuthenticNotification({ dataId: 'ORD01ABC', xRequestId: 'r' }),
+      ).toBe(false);
+    });
+
+    it('rejects everything while the secret is not configured', () => {
+      client = new MercadoPagoSdkClient({
+        accessToken: 'APP_USR-token',
+        timeoutMs: 5000,
+        webhookSecret: '',
+      });
+      expect(client.isAuthenticNotification(signed('ord01abc'))).toBe(false);
     });
   });
 });

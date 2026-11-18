@@ -1,4 +1,12 @@
-import { Body, Controller, Inject, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
   ApiBadGatewayResponse,
@@ -7,6 +15,7 @@ import {
   ApiCreatedResponse,
   ApiGatewayTimeoutResponse,
   ApiNotFoundResponse,
+  ApiOkResponse,
   ApiServiceUnavailableResponse,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -15,6 +24,7 @@ import {
   CreatePaymentDto,
   PAYMENTS_PATTERNS,
   PAYMENTS_SERVICE,
+  SalePaymentMessage,
 } from '@app/contracts';
 import { Roles } from '../auth/roles.decorator';
 import { sendRpc } from '../common/send-rpc';
@@ -62,6 +72,25 @@ export class PaymentsController {
       PAYMENTS_PATTERNS.CREATE_PAYMENT,
       dto,
       PAYMENT_TCP_TIMEOUT_MS,
+    );
+  }
+
+  // Every role polls it: the cashier who opened the checkout waits for the result
+  /**
+   * Latest payment attempt of a sale (any role). Poll it after the buyer comes
+   * back from Mercado Pago: the state is set by the webhook, so do not trust
+   * the query params of the return URL. Paid means the sale is now Paid too.
+   */
+  @Roles('Owner', 'Admin', 'Employee')
+  @Get('sale/:saleId')
+  @ApiOkResponse({ type: PaymentResponseDto })
+  @ApiBadRequestResponse({ description: 'saleId is not a UUID' })
+  @ApiNotFoundResponse({ description: 'The sale has no payment yet' })
+  getBySale(@Param('saleId', ParseUUIDPipe) saleId: string) {
+    return sendRpc<PaymentResponseDto, SalePaymentMessage>(
+      this.paymentsClient,
+      PAYMENTS_PATTERNS.GET_SALE_PAYMENT,
+      { saleId },
     );
   }
 }

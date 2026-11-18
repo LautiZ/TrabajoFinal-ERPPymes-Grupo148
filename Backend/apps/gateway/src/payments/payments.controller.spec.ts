@@ -16,6 +16,10 @@ describe('PaymentsController roles (RN-16.3)', () => {
     expect(rolesOf('create')).toEqual(['Owner', 'Admin', 'Employee']);
   });
 
+  it('lets every role poll the payment of a sale', () => {
+    expect(rolesOf('getBySale')).toEqual(['Owner', 'Admin', 'Employee']);
+  });
+
   it('keeps any other payments route for Owner and Admin by default', () => {
     expect(new Reflector().get<Role[]>(ROLES_KEY, PaymentsController)).toEqual([
       'Owner',

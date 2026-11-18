@@ -15,6 +15,7 @@ import { ProductsController } from './products/products.controller';
 import { CategoriesController } from './categories/categories.controller';
 import { SalesController } from './sales/sales.controller';
 import { PaymentsController } from './payments/payments.controller';
+import { PaymentsWebhookController } from './payments/payments-webhook.controller';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { PaymentsController } from './payments/payments.controller';
     CategoriesController,
     SalesController,
     PaymentsController,
+    PaymentsWebhookController,
   ],
   providers: [
     AppService,

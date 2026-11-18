@@ -7,6 +7,7 @@ import { MercadoPagoModule } from './mercadopago/mercadopago.module';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { CHECKOUT_OPTIONS } from './payments/checkout-options';
+import { PaymentNotificationsService } from './payments/payment-notifications.service';
 import type { CheckoutOptions } from './payments/checkout-options';
 import { PaymentsRepository } from './payments/payments.repository';
 import { PrismaModule } from './prisma/prisma.module';
@@ -26,6 +27,7 @@ import { PrismaModule } from './prisma/prisma.module';
   controllers: [PaymentsController],
   providers: [
     PaymentsService,
+    PaymentNotificationsService,
     PaymentsRepository,
     SalesClient,
     {
