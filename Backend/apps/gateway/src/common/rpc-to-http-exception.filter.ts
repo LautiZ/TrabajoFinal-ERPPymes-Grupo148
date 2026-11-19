@@ -42,9 +42,12 @@ export class RpcToHttpExceptionFilter extends BaseExceptionFilter {
       return new ServiceUnavailableException('Service unavailable');
     }
     if (isRpcError(exception)) {
+      // Extra fields (e.g. code and items of a stock conflict) reach the client;
+      // statusCode and message go last so the payload cannot override them
+      const { status, message, ...extra } = exception;
       return new HttpException(
-        { statusCode: exception.status, message: exception.message },
-        exception.status,
+        { ...extra, statusCode: status, message },
+        status,
       );
     }
     // Unknown errors fall through to Nest's default 500 (and get logged)

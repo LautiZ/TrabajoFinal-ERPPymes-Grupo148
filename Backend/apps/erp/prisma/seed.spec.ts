@@ -1,5 +1,5 @@
 import { MovementType, ProductUnit } from '../src/generated/prisma/client';
-import { CatalogSeed, ErpSeedClient, seedErp } from './seed';
+import { CatalogSeed, ErpSeedClient, SAMPLE_CATALOG, seedErp } from './seed';
 
 describe('seedErp', () => {
   const ownerId = 'owner-id';
@@ -14,6 +14,7 @@ describe('seedErp', () => {
           price: 1000,
           unit: ProductUnit.Unit,
           stock: 40,
+          lowStockThreshold: 10,
         },
         {
           name: 'Sin stock',
@@ -21,6 +22,7 @@ describe('seedErp', () => {
           price: 500,
           unit: ProductUnit.Unit,
           stock: 0,
+          lowStockThreshold: 5,
         },
       ],
     },
@@ -60,6 +62,22 @@ describe('seedErp', () => {
       quantity: 40,
       userId: ownerId,
     });
+  });
+
+  it('stores each product low-stock threshold, so the low filter can match', async () => {
+    const { client, product } = mockClient();
+
+    await seedErp(client, ownerId, catalog);
+
+    expect(product.create.mock.calls[0][0].data.lowStockThreshold).toBe(10);
+    expect(product.create.mock.calls[1][0].data.lowStockThreshold).toBe(5);
+  });
+
+  it('ships a sample catalog with at least one low-stock product', () => {
+    const lowStock = SAMPLE_CATALOG.flatMap((c) => c.products).filter(
+      (p) => p.stock > 0 && p.stock <= p.lowStockThreshold,
+    );
+    expect(lowStock.length).toBeGreaterThan(0);
   });
 
   it('creates a product without stock and without movements', async () => {

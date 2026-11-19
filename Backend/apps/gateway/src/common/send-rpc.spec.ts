@@ -42,4 +42,19 @@ describe('sendRpc', () => {
 
     await expect(pending).rejects.toBeInstanceOf(TimeoutError);
   });
+
+  it('waits longer when the route gives its own timeout', async () => {
+    jest.useFakeTimers();
+    send.mockReturnValue(NEVER);
+    const settled = jest.fn();
+
+    const pending = sendRpc(client, 'some.pattern', {}, 15_000);
+    pending.catch(settled);
+    jest.advanceTimersByTime(TCP_TIMEOUT_MS);
+    await Promise.resolve();
+    expect(settled).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(15_000 - TCP_TIMEOUT_MS);
+    await expect(pending).rejects.toBeInstanceOf(TimeoutError);
+  });
 });

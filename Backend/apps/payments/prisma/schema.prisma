@@ -3,6 +3,7 @@ generator client {
   output              = "../src/generated/prisma"
   moduleFormat        = "cjs"
   importFileExtension = ""
+  previewFeatures     = ["partialIndexes"]
 }
 
 datasource db {
@@ -25,10 +26,10 @@ model Payment {
   id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   paymentState PaymentState @default(Pending) @map("payment_state")
   mpPaymentId  String?      @unique(map: "uq_payments_mp_payment_id") @map("mp_payment_id") @db.VarChar
-  // Mercado Pago checkout preference: one per payment attempt
-  preferenceId String?      @unique(map: "uq_payments_preference_id") @map("preference_id") @db.VarChar
+  // Mercado Pago order (Checkout Pro via the Orders API): one per payment attempt
+  mpOrderId    String?      @unique(map: "uq_payments_mp_order_id") @map("mp_order_id") @db.VarChar
   // Checkout URL, stored so a pending payment can be resumed without calling Mercado Pago again
-  initPoint    String?      @map("init_point") @db.VarChar
+  checkoutUrl  String?      @map("checkout_url") @db.VarChar
   amount       Decimal      @db.Decimal(12, 2)
   // Cross-service reference to erp.sales.id: no FK on purpose
   saleId       String       @map("sale_id") @db.Uuid
@@ -37,6 +38,8 @@ model Payment {
 
   // Natural key; also serves lookups by sale_id
   @@unique([saleId, createdAt], map: "uq_payments_sale_id_created_at")
+  // At most one open attempt per sale: concurrent checkouts cannot create two orders
+  @@unique([saleId], map: "uq_payments_sale_id_pending", where: raw("payment_state = 'Pending'"))
   @@map("payments")
   @@schema("payments")
 }

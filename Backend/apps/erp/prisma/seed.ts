@@ -12,6 +12,8 @@ export interface ProductSeed {
   price: number;
   unit: ProductUnit;
   stock: number;
+  /** Stock at or below this (and above 0) counts as low stock */
+  lowStockThreshold: number;
 }
 
 export interface CategorySeed {
@@ -22,7 +24,8 @@ export interface CategorySeed {
 
 export type CatalogSeed = CategorySeed[];
 
-// Sample data with high, low and zero stock, plus fractional units (Kg, Meter)
+// Sample data with ok, low and zero stock, plus fractional units (Kg, Meter).
+// Thresholds are set so ALM-002 and ALM-003 show up as low stock
 export const SAMPLE_CATALOG: CatalogSeed = [
   {
     name: 'Almacén',
@@ -34,6 +37,7 @@ export const SAMPLE_CATALOG: CatalogSeed = [
         price: 1850,
         unit: ProductUnit.Unit,
         stock: 40,
+        lowStockThreshold: 10,
       },
       {
         name: 'Yerba mate 1 kg',
@@ -41,6 +45,7 @@ export const SAMPLE_CATALOG: CatalogSeed = [
         price: 4200,
         unit: ProductUnit.Unit,
         stock: 3,
+        lowStockThreshold: 5,
       },
       {
         name: 'Queso cremoso',
@@ -48,6 +53,7 @@ export const SAMPLE_CATALOG: CatalogSeed = [
         price: 9800,
         unit: ProductUnit.Kg,
         stock: 7.25,
+        lowStockThreshold: 8,
       },
     ],
   },
@@ -61,6 +67,7 @@ export const SAMPLE_CATALOG: CatalogSeed = [
         price: 950,
         unit: ProductUnit.Meter,
         stock: 125.5,
+        lowStockThreshold: 20,
       },
       {
         name: 'Pintura látex blanca',
@@ -68,6 +75,7 @@ export const SAMPLE_CATALOG: CatalogSeed = [
         price: 15500,
         unit: ProductUnit.Liter,
         stock: 0,
+        lowStockThreshold: 3,
       },
     ],
   },
@@ -102,6 +110,7 @@ export async function seedErp(
           price: p.price,
           unit: p.unit,
           stock: p.stock,
+          lowStockThreshold: p.lowStockThreshold,
           categoryId,
           stockMovements:
             p.stock > 0

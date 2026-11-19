@@ -13,3 +13,6 @@ export * from './roles';
 export * from './dtos/create-user.dto';
 export * from './dtos/product.dto';
 export * from './dtos/category.dto';
+export * from './dtos/sale.dto';
+export * from './dtos/payment.dto';
+export * from './dtos/analytics.dto';

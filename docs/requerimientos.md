@@ -14,11 +14,11 @@ Plataforma web (ERP) que centraliza inventario, punto de venta (POS) y pagos, co
 
 ### 1.3 Actores
 
-| Actor    | Descripción                                                                                                          |
-| -------- | -------------------------------------------------------------------------------------------------------------------- |
-| Owner    | Dueño del sistema. Único usuario con este rol. Acceso irrestricto y único habilitado para asignar o modificar roles. |
-| Admin    | Administrador. Accede a toda la aplicación, pero solo puede dar de alta usuarios `Employee`.                         |
-| Employee | Usuario operativo. Acceso completo al ERP MS (catálogo, stock y ventas); sin acceso a Auth MS ni Payments MS.        |
+| Actor    | Descripción                                                                                                                                     |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Owner    | Dueño del sistema. Único usuario con este rol. Acceso irrestricto y único habilitado para asignar o modificar roles.                            |
+| Admin    | Administrador. Accede a toda la aplicación, pero solo puede dar de alta usuarios `Employee`.                                                    |
+| Employee | Usuario operativo. Acceso completo al ERP MS (catálogo, stock y ventas); sin acceso a Auth MS; en Payments MS solo genera el pago de una venta. |
 
 > El detalle completo de permisos por rol está en las [reglas de negocio, RN-16 a RN-16.4](./reglas-de-negocio.md#4-usuarios-y-permisos).
 
