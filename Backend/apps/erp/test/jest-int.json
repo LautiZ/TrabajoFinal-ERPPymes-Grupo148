@@ -1,0 +1,15 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".int-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "globalSetup": "<rootDir>/int/global-setup.ts",
+  "setupFiles": ["<rootDir>/int/setup-env.ts"],
+  "testTimeout": 60000,
+  "moduleNameMapper": {
+    "^@app/contracts(|/.*)$": "<rootDir>/../../../libs/contracts/src/$1"
+  }
+}
