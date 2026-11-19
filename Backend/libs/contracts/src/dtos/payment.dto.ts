@@ -67,5 +67,7 @@ export interface PaymentView {
   state: PaymentState;
   /** Mercado Pago checkout to redirect the buyer to; null once the attempt is closed */
   checkoutUrl: string | null;
+  /** Mercado Pago payment id: the payment reference of the receipt; null until paid */
+  mpPaymentId: string | null;
   createdAt: Date;
 }

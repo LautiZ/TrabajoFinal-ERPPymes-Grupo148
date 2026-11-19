@@ -1,6 +1,6 @@
 import { RpcException } from '@nestjs/microservices';
 import { Test } from '@nestjs/testing';
-import { SALE_CANCELLED, type SaleView } from '@app/contracts';
+import { SALE_CANCELLED, SALE_NOT_PAID, type SaleView } from '@app/contracts';
 import { Prisma } from '../generated/prisma/client';
 import { InsufficientStockError, SaleTotalTooLargeError } from './sale-errors';
 import { SalesRepository } from './sales.repository';
@@ -284,6 +284,86 @@ describe('SalesService', () => {
         .mockResolvedValueOnce(true);
 
       expect(await service.cancelExpired(cutoff)).toBe(1);
+    });
+  });
+
+  describe('receipt', () => {
+    const paidAt = new Date('2026-11-18T23:37:07Z');
+    const items = [
+      {
+        productId: 'p-1',
+        name: 'Queso',
+        sku: 'QUE',
+        quantity: 1,
+        unitPrice: 9800,
+        subtotal: 9800,
+      },
+    ];
+    const paidSale = {
+      id: 'sale-1',
+      saleNumber: 113,
+      receiptNumber: 123,
+      total: 9800,
+      currentState: 'Paid',
+      userId: 'user-1',
+      items,
+      history: [
+        {
+          state: 'Ordered',
+          userId: 'user-1',
+          createdAt: new Date('2026-11-18T23:25:00Z'),
+        },
+        { state: 'Paid', userId: null, createdAt: paidAt },
+      ],
+    } as unknown as SaleView;
+
+    it('returns the receipt of a paid sale with its formatted number', async () => {
+      sales.findById.mockResolvedValue(paidSale);
+
+      await expect(service.receipt('sale-1')).resolves.toEqual({
+        receiptNumber: '0001-00000123',
+        saleId: 'sale-1',
+        saleNumber: 113,
+        issuedAt: paidAt,
+        sellerId: 'user-1',
+        items,
+        total: 9800,
+      });
+    });
+
+    it('keeps the receipt of a dispatched sale (it was paid first)', async () => {
+      sales.findById.mockResolvedValue({
+        ...paidSale,
+        currentState: 'Dispatched',
+      });
+
+      expect((await service.receipt('sale-1')).receiptNumber).toBe(
+        '0001-00000123',
+      );
+    });
+
+    it.each(['Ordered', 'Cancelled'])(
+      'answers 409 SALE_NOT_PAID for a sale in %s',
+      async (currentState) => {
+        sales.findById.mockResolvedValue({
+          ...paidSale,
+          currentState,
+          receiptNumber: null,
+        });
+
+        expect(await errorOf(service.receipt('sale-1'))).toMatchObject({
+          status: 409,
+          code: SALE_NOT_PAID,
+        });
+      },
+    );
+
+    it('answers 404 for an unknown sale', async () => {
+      sales.findById.mockResolvedValue(null);
+
+      expect(await errorOf(service.receipt('sale-x'))).toMatchObject({
+        status: 404,
+      });
     });
   });
 });

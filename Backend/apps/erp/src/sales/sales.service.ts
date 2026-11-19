@@ -2,10 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   INSUFFICIENT_STOCK,
   paginate,
+  RECEIPT_POINT_OF_SALE,
   SALE_CANCELLED,
+  SALE_NOT_PAID,
   type CreateSaleMessage,
   type ListSalesDto,
   type PaginatedResponse,
+  type SaleReceiptView,
+  type SaleState,
   type SaleSummaryView,
   type SaleView,
 } from '@app/contracts';
@@ -13,6 +17,12 @@ import { rpcError } from '../common/rpc-error';
 import { isTransientTransactionError } from '../prisma/prisma-errors';
 import { InsufficientStockError, SaleTotalTooLargeError } from './sale-errors';
 import { SalesRepository } from './sales.repository';
+
+const RECEIPT_STATES: readonly SaleState[] = ['Paid', 'Dispatched'];
+
+// 0001-00000123: point of sale and the correlative padded to 8 digits
+export const formatReceiptNumber = (n: number) =>
+  `${RECEIPT_POINT_OF_SALE}-${String(n).padStart(8, '0')}`;
 
 // One run of the expiration job cancels at most this many sales; the rest
 // wait for the next run
@@ -75,6 +85,33 @@ export class SalesService {
     }
     // Paid by this call, or already Paid/Dispatched by an earlier one
     return sale;
+  }
+
+  // Receipt data of a paid sale (TES-76). Dispatched sales were paid first,
+  // so they keep their receipt. The number was assigned by markPaid.
+  async receipt(id: string): Promise<SaleReceiptView> {
+    const sale = await this.get(id);
+    const paidAt = sale.history.find((step) => step.state === 'Paid');
+    if (
+      !RECEIPT_STATES.includes(sale.currentState) ||
+      sale.receiptNumber === null ||
+      !paidAt
+    ) {
+      throw rpcError(
+        409,
+        `Sale is not paid (current state: ${sale.currentState})`,
+        { code: SALE_NOT_PAID },
+      );
+    }
+    return {
+      receiptNumber: formatReceiptNumber(sale.receiptNumber),
+      saleId: sale.id,
+      saleNumber: sale.saleNumber,
+      issuedAt: paidAt.createdAt,
+      sellerId: sale.userId,
+      items: sale.items,
+      total: sale.total,
+    };
   }
 
   // Called by Payments when the payment fails or expires (TES-75). Only an

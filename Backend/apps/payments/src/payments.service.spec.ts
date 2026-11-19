@@ -41,6 +41,7 @@ const row = (overrides: Record<string, unknown> = {}) => ({
   amount: 3001,
   paymentState: 'Pending',
   mpOrderId: null,
+  mpPaymentId: null,
   checkoutUrl: null,
   createdAt,
   ...overrides,
@@ -52,6 +53,7 @@ const view = {
   amount: 3001,
   state: 'Pending',
   checkoutUrl: 'https://mp.test/checkout?order_id=ORD01',
+  mpPaymentId: null,
   createdAt,
 };
 
@@ -64,7 +66,7 @@ describe('PaymentsService', () => {
     reservePending: jest.fn(),
     attachCheckout: jest.fn(),
     releaseIfUnattached: jest.fn(),
-    findLatestBySale: jest.fn(),
+    findCurrentBySale: jest.fn(),
   };
   const mercadoPago = { createCheckout: jest.fn(), getOrder: jest.fn() };
 
@@ -252,25 +254,28 @@ describe('PaymentsService', () => {
 
   describe('getBySale', () => {
     // The row keeps its checkout url (DB check), but a paid attempt hides it
-    it('returns the latest payment attempt of the sale', async () => {
-      payments.findLatestBySale.mockResolvedValue(
+    it('returns the current payment attempt of the sale', async () => {
+      payments.findCurrentBySale.mockResolvedValue(
         row({
           paymentState: 'Paid',
           mpOrderId: 'ORD01',
+          mpPaymentId: 'PAY01',
           checkoutUrl: view.checkoutUrl,
         }),
       );
 
+      // mpPaymentId is the payment reference printed on the receipt (TES-76)
       await expect(service.getBySale({ saleId: 'sale-1' })).resolves.toEqual({
         ...view,
         state: 'Paid',
         checkoutUrl: null,
+        mpPaymentId: 'PAY01',
       });
-      expect(payments.findLatestBySale).toHaveBeenCalledWith('sale-1');
+      expect(payments.findCurrentBySale).toHaveBeenCalledWith('sale-1');
     });
 
     it('answers 404 when the sale has no payment yet', async () => {
-      payments.findLatestBySale.mockResolvedValue(null);
+      payments.findCurrentBySale.mockResolvedValue(null);
 
       expect(await errorOf(service.getBySale({ saleId: 'sale-1' }))).toEqual({
         status: 404,

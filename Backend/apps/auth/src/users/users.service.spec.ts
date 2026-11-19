@@ -105,3 +105,22 @@ describe('UsersService.create', () => {
     expect(result).not.toHaveProperty('passwordHash');
   });
 });
+
+describe('UsersService.getSummary', () => {
+  const users = { findSummary: jest.fn() };
+  const service = new UsersService(users as unknown as UsersRepository);
+
+  it('returns only the public summary of the user', async () => {
+    const summary = { id: 'user-1', name: 'Ana', surname: null };
+    users.findSummary.mockResolvedValue(summary);
+
+    await expect(service.getSummary('user-1')).resolves.toBe(summary);
+    expect(users.findSummary).toHaveBeenCalledWith('user-1');
+  });
+
+  it('answers 404 for an unknown user', async () => {
+    users.findSummary.mockResolvedValue(null);
+
+    expect(await statusOf(service.getSummary('user-x'))).toBe(404);
+  });
+});
