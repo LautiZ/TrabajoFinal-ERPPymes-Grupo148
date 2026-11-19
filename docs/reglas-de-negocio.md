@@ -67,7 +67,8 @@ Los roles son `Owner`, `Admin` y `Employee`, mutuamente excluyentes: un usuario 
 | Crear una cuenta nueva con rol `Admin`                           | Sí    | No    | No       |
 | Crear una cuenta nueva con rol `Employee`                        | Sí    | Sí    | No       |
 | Acceder al ERP MS (productos, stock y ventas)                    | Sí    | Sí    | Sí       |
-| Acceder al Payments MS                                           | Sí    | Sí    | No       |
+| Generar el pago de una venta (checkout de Mercado Pago)          | Sí    | Sí    | Sí       |
+| Resto del Payments MS (consultar, cancelar o reembolsar pagos)   | Sí    | Sí    | No       |
 
 **RN-16.1 — Existe un único usuario con rol `Owner`.**
 El sistema no admite dos usuarios con rol `Owner` de forma simultánea. El `Owner` accede sin restricciones a toda la aplicación y es el único que puede **modificar el rol de un usuario ya existente** — por ejemplo, ascender a un `Employee` a `Admin`, o remover a un `Admin` de ese rol. Esto es distinto de crear una cuenta nueva (RN-16.2), que es una acción separada.
@@ -75,8 +76,8 @@ El sistema no admite dos usuarios con rol `Owner` de forma simultánea. El `Owne
 **RN-16.2 — Un `Admin` no puede crear usuarios de su mismo rol.**
 El `Admin` accede a todas las rutas de la aplicación y puede dar de alta cuentas nuevas con rol `Employee`, pero no puede crear un `Admin` ni un `Owner`, ni modificar el rol de un usuario ya existente. Crear un nuevo `Admin` o cambiar el rol de alguien ya registrado es potestad exclusiva del `Owner` (RN-16.1). El objetivo es impedir la escalada horizontal de privilegios: ningún administrador puede multiplicar su propio nivel de acceso sin pasar por el dueño del sistema.
 
-**RN-16.3 — El `Employee` solo accede al ERP MS, pero sin restricciones dentro de él.**
-Un usuario con rol `Employee` no tiene acceso al Auth MS (gestión de usuarios) ni al Payments MS. Dentro del ERP MS accede libremente a todas sus funciones: CRUD de productos (creación, modificación, cambio de estado), movimientos de stock y carga de ventas — es quien opera el punto de venta día a día (coherente con RN-12 y RF-14: `sales.user_id` es el empleado que cargó la venta).
+**RN-16.3 — El `Employee` opera el ERP MS sin restricciones y solo puede generar pagos.**
+Un usuario con rol `Employee` no tiene acceso al Auth MS (gestión de usuarios). En el Payments MS su única acción es generar el pago de una venta (abrir el checkout de Mercado Pago), porque es quien cobra en el mostrador; consultar, cancelar o reembolsar pagos queda reservado a `Owner` y `Admin`. Dentro del ERP MS accede libremente a todas sus funciones: CRUD de productos (creación, modificación, cambio de estado), movimientos de stock y carga de ventas — es quien opera el punto de venta día a día (coherente con RN-12 y RF-14: `sales.user_id` es el empleado que cargó la venta).
 
 **RN-16.4 — El primer usuario registrado en el sistema es el `Owner`, y el registro público es solo de arranque (bootstrap).**
 Al momento del registro inicial no existe ningún usuario que pueda dar de alta a nadie (RN-16.1/RN-16.2), así que el sistema resuelve el arranque de forma automática: el primer registro recibe el rol `Owner` sin intervención manual. Una vez que ese `Owner` existe, el endpoint de registro público queda **deshabilitado permanentemente**: no hay auto-registro de `Employee` ni de ningún otro rol. De ahí en adelante, toda alta de usuario nueva es una acción autenticada de un `Owner` (cualquier rol) o de un `Admin` (solo `Employee`, RN-16.2).

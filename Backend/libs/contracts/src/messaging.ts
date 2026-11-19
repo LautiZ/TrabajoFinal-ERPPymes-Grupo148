@@ -24,8 +24,19 @@ export const ERP_PATTERNS = {
   LIST_CATEGORIES: 'erp.categories.list',
   CREATE_CATEGORY: 'erp.categories.create',
   DELETE_CATEGORY: 'erp.categories.delete',
+  CREATE_SALE: 'erp.sales.create',
+  LIST_SALES: 'erp.sales.list',
+  GET_SALE: 'erp.sales.get',
+  MARK_SALE_PAID: 'erp.sales.mark-paid',
+  ANALYTICS_SUMMARY: 'erp.analytics.summary',
+  ANALYTICS_SALES_OVER_TIME: 'erp.analytics.sales-over-time',
+  ANALYTICS_TOP_PRODUCTS: 'erp.analytics.top-products',
+  ANALYTICS_INVENTORY_VALUE: 'erp.analytics.inventory-value',
 } as const;
 
 export const PAYMENTS_PATTERNS = {
   COUNT_PAYMENTS: 'payments.payments.count',
+  CREATE_PAYMENT: 'payments.payments.create',
+  GET_SALE_PAYMENT: 'payments.payments.get-by-sale',
+  HANDLE_NOTIFICATION: 'payments.notifications.handle',
 } as const;

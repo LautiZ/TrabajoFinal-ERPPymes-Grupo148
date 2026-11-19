@@ -8,6 +8,7 @@
 --   * Sale 2: Ordered, payment still pending.
 --   * Sale 3: Ordered -> Cancelled, stock reverted with an inverse movement (RN-11).
 --   * One negative Adjustment for shrinkage (RN-03).
+--   * Queso cremoso ends below its low_stock_threshold (low stock).
 --   products.stock equals the sum of each product's movements (RN-01).
 -- =============================================================
 
@@ -19,10 +20,10 @@ INSERT INTO "categories" ("id", "name", "description") VALUES
   ('22222222-2222-2222-2222-000000000003', 'Ferretería', 'Materiales eléctricos y de construcción');
 
 -- Final stock: 50 - 2 - 1 + 1 = 48 | 10 - 0.75 = 9.25 | 100 - 5 - 10 = 85
-INSERT INTO "products" ("id", "name", "sku", "price", "stock", "unit", "category_id") VALUES
-  ('33333333-3333-3333-3333-000000000001', 'Gaseosa cola 1,5 L', 'BEB-0001', 2500.00, 48, 'Unit', '22222222-2222-2222-2222-000000000001'),
-  ('33333333-3333-3333-3333-000000000002', 'Queso cremoso', 'FIA-0001', 9800.00, 9.250, 'Kg', '22222222-2222-2222-2222-000000000002'),
-  ('33333333-3333-3333-3333-000000000003', 'Cable unipolar 2,5 mm', 'FER-0001', 1200.00, 85, 'Meter', '22222222-2222-2222-2222-000000000003');
+INSERT INTO "products" ("id", "name", "sku", "price", "stock", "low_stock_threshold", "unit", "category_id") VALUES
+  ('33333333-3333-3333-3333-000000000001', 'Gaseosa cola 1,5 L', 'BEB-0001', 2500.00, 48, 12, 'Unit', '22222222-2222-2222-2222-000000000001'),
+  ('33333333-3333-3333-3333-000000000002', 'Queso cremoso', 'FIA-0001', 9800.00, 9.250, 10, 'Kg', '22222222-2222-2222-2222-000000000002'),
+  ('33333333-3333-3333-3333-000000000003', 'Cable unipolar 2,5 mm', 'FER-0001', 1200.00, 85, 20, 'Meter', '22222222-2222-2222-2222-000000000003');
 
 INSERT INTO "sales" ("id", "total", "user_id", "current_state") VALUES
   ('44444444-4444-4444-4444-000000000001', 12350.00, '11111111-1111-1111-1111-000000000003', 'Dispatched'),
