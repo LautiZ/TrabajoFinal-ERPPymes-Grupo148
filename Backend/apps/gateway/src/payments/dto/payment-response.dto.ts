@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   PAYMENT_STATES,
   SALE_NOT_PAYABLE,
+  SALE_PAYMENT_EXPIRED,
   type PaymentState,
   type PaymentView,
 } from '@app/contracts';
@@ -29,6 +30,6 @@ export class SaleNotPayableResponseDto {
   statusCode!: number;
   /** @example Sale is not awaiting payment (current state: Paid) */
   message!: string;
-  @ApiProperty({ enum: [SALE_NOT_PAYABLE] })
-  code!: typeof SALE_NOT_PAYABLE;
+  @ApiProperty({ enum: [SALE_NOT_PAYABLE, SALE_PAYMENT_EXPIRED] })
+  code!: typeof SALE_NOT_PAYABLE | typeof SALE_PAYMENT_EXPIRED;
 }

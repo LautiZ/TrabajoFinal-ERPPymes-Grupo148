@@ -70,7 +70,11 @@ describe('PaymentsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    sales.getSale.mockResolvedValue(sale);
+    // Registered a minute ago: well inside the 30 min payment window
+    sales.getSale.mockResolvedValue({
+      ...sale,
+      createdAt: new Date(Date.now() - 60_000),
+    });
     payments.findPendingBySale.mockResolvedValue(null);
     payments.reservePending.mockResolvedValue(row());
     payments.releaseIfUnattached.mockResolvedValue(true);
@@ -90,7 +94,10 @@ describe('PaymentsService', () => {
         { provide: MercadoPagoClient, useValue: mercadoPago },
         {
           provide: CHECKOUT_OPTIONS,
-          useValue: { frontendUrl: 'http://localhost:4200' },
+          useValue: {
+            frontendUrl: 'http://localhost:4200',
+            paymentWindowMinutes: 30,
+          },
         },
       ],
     }).compile();
@@ -115,6 +122,8 @@ describe('PaymentsService', () => {
           pending: 'http://localhost:4200/payments/pending',
         },
         autoReturn: true,
+        // The order expires with the payment window (TES-75)
+        expirationMinutes: 30,
       });
       expect(payments.attachCheckout).toHaveBeenCalledWith('pay-1', {
         orderId: 'ORD01',
@@ -131,6 +140,32 @@ describe('PaymentsService', () => {
         code: 'SALE_NOT_PAYABLE',
       });
       expect(payments.reservePending).not.toHaveBeenCalled();
+    });
+
+    it('rejects a new checkout once the sale is past its payment window', async () => {
+      sales.getSale.mockResolvedValue({
+        ...sale,
+        createdAt: new Date(Date.now() - 31 * 60_000),
+      });
+
+      expect(await errorOf(service.create({ saleId: 'sale-1' }))).toMatchObject(
+        { status: 409, code: 'SALE_PAYMENT_EXPIRED' },
+      );
+      expect(payments.reservePending).not.toHaveBeenCalled();
+      expect(mercadoPago.createCheckout).not.toHaveBeenCalled();
+    });
+
+    // The open order is still payable until its own expiry
+    it('still resumes an open checkout after the window', async () => {
+      sales.getSale.mockResolvedValue({
+        ...sale,
+        createdAt: new Date(Date.now() - 31 * 60_000),
+      });
+      payments.findPendingBySale.mockResolvedValue(
+        row({ mpOrderId: 'ORD01', checkoutUrl: view.checkoutUrl }),
+      );
+
+      await expect(service.create({ saleId: 'sale-1' })).resolves.toEqual(view);
     });
 
     it('reuses the open checkout instead of creating another order', async () => {

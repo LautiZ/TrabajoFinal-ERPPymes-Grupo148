@@ -71,6 +71,17 @@ describe('SalesClient', () => {
     });
   });
 
+  it('asks the ERP to cancel the sale', async () => {
+    send.mockReturnValue(of({ id: 'sale-1', currentState: 'Cancelled' }));
+
+    await expect(client.cancelSale('sale-1')).resolves.toMatchObject({
+      currentState: 'Cancelled',
+    });
+    expect(send).toHaveBeenCalledWith(ERP_PATTERNS.CANCEL_SALE, {
+      id: 'sale-1',
+    });
+  });
+
   it('keeps the ERP status and code when marking as paid fails', async () => {
     send.mockReturnValue(
       throwError(() => ({ status: 409, code: 'SALE_CANCELLED', message: 'x' })),

@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { SALE_NOT_PAYABLE } from '@app/contracts';
+import { SALE_NOT_PAYABLE, SALE_PAYMENT_EXPIRED } from '@app/contracts';
 import type {
   CreatePaymentDto,
   PaymentView,
@@ -71,6 +71,17 @@ export class PaymentsService {
       return this.resume(open);
     }
 
+    // A new order is payable for one more window, and the ERP cancels unpaid
+    // sales after two: past the first, a new checkout could outlive the sale
+    const windowMs = this.options.paymentWindowMinutes * 60_000;
+    if (Date.now() - new Date(sale.createdAt).getTime() > windowMs) {
+      throw rpcError(
+        409,
+        `The payment window of this sale has expired (${this.options.paymentWindowMinutes} min): register it again`,
+        { code: SALE_PAYMENT_EXPIRED },
+      );
+    }
+
     const reserved = await this.paymentsRepository.reservePending(
       saleId,
       sale.total,
@@ -94,6 +105,7 @@ export class PaymentsService {
           pending: `${this.options.frontendUrl}/payments/pending`,
         },
         autoReturn: true,
+        expirationMinutes: this.options.paymentWindowMinutes,
       });
     } catch (err) {
       // Free the slot so the client can retry; an order Mercado Pago may have

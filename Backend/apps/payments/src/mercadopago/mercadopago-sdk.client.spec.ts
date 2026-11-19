@@ -29,6 +29,7 @@ const input = {
     pending: 'https://front.test/payments/pending',
   },
   autoReturn: true,
+  expirationMinutes: 30,
 };
 
 const rpcStatus = (error: unknown) =>
@@ -69,6 +70,7 @@ describe('MercadoPagoSdkClient', () => {
           type: 'online',
           processing_mode: 'manual',
           external_reference: 'sale-1',
+          expiration_time: 'PT30M',
           // 2 x 1500.50 + 1 x 0.10, summed in cents to avoid float drift
           total_amount: '3001.10',
           items: [

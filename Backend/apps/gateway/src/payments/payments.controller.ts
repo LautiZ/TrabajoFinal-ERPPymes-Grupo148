@@ -50,6 +50,9 @@ export class PaymentsController {
    * Open the Mercado Pago checkout of a sale in Ordered (any role). Amount and
    * items come from the ERP. If the sale already has an open checkout, that one
    * is returned instead of creating a second order, so the call is safe to repeat.
+   * A new checkout can only be opened within SALE_PAYMENT_WINDOW_MINUTES (30 by
+   * default) of the sale, and the Mercado Pago order expires after the same time.
+   * A failed or expired payment cancels the sale and returns its stock.
    */
   @Roles('Owner', 'Admin', 'Employee')
   @Post()
@@ -59,7 +62,7 @@ export class PaymentsController {
   @ApiConflictResponse({
     type: SaleNotPayableResponseDto,
     description:
-      'The sale is not in Ordered (code SALE_NOT_PAYABLE), or another request is still creating its checkout (no code: retry)',
+      'The sale is not in Ordered (code SALE_NOT_PAYABLE), is past its payment window (code SALE_PAYMENT_EXPIRED: register the sale again), or another request is still creating its checkout (no code: retry)',
   })
   @ApiBadGatewayResponse({ description: 'Mercado Pago rejected the request' })
   @ApiServiceUnavailableResponse({
