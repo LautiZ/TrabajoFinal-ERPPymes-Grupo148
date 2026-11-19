@@ -225,6 +225,78 @@ export class SalesRepository {
     });
   }
 
+  /**
+   * Cancels an unpaid sale and returns its stock in one transaction (TES-75,
+   * RN-11). Only Ordered: a failed payment attempt must never cancel a sale
+   * that another attempt already paid. The conditional update locks the row,
+   * so it races safely with markPaid: whichever runs first wins, and a
+   * repeated call returns false without returning the stock twice.
+   *
+   * The original Outcome movements are kept; each item gets an Income with
+   * the sale id (RN-11). stock_movements.user_id is required, so the reversal
+   * is recorded under the employee who registered the sale, while the history
+   * step has no user because the system made the change (RN-10).
+   */
+  cancelUnpaid(id: string): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.sale.updateMany({
+        where: { id, currentState: 'Ordered' },
+        data: { currentState: 'Cancelled' },
+      });
+      if (count === 0) return false;
+
+      const sale = await tx.sale.findUniqueOrThrow({
+        where: { id },
+        select: {
+          userId: true,
+          // Same order as createSale, so a cancel and a sale cannot deadlock
+          items: {
+            select: { productId: true, quantity: true },
+            orderBy: { productId: 'asc' },
+          },
+        },
+      });
+      // Sequential on purpose: Promise.all would lock the rows in any order.
+      // Deleted or paused products get their stock back too: it physically
+      // returned, and applyStockDelta would skip deleted ones.
+      for (const item of sale.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+      await tx.sale.update({
+        where: { id },
+        data: {
+          stockMovements: {
+            create: sale.items.map((item) => ({
+              typeMovement: 'Income' as const,
+              quantity: item.quantity,
+              productId: item.productId,
+              userId: sale.userId,
+            })),
+          },
+          history: { create: { saleState: 'Cancelled', userId: null } },
+        },
+      });
+      return true;
+    });
+  }
+
+  // Oldest first, bounded: one run of the expiration job never takes long.
+  // The age uses the database clock (now()), the same one that stamped
+  // created_at, so a skewed app clock cannot cancel a sale too early.
+  async findOrderedOlderThan(minutes: number, take: number): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT id
+      FROM erp.sales
+      WHERE current_state = 'Ordered'
+        AND created_at < now() - make_interval(mins => ${minutes}::int)
+      ORDER BY created_at
+      LIMIT ${take}`;
+    return rows.map((row) => row.id);
+  }
+
   async findById(id: string): Promise<SaleView | null> {
     const row = await this.prisma.sale.findUnique({
       where: { id },

@@ -30,8 +30,9 @@ const isSaleCancelled = (err: unknown) =>
 /**
  * Applies a Mercado Pago webhook (TES-29). The body is never trusted: the
  * signature proves who sent it, and the order is read again from the Orders
- * API to learn its real state. Safe to repeat: a notification that changes
- * nothing is simply acknowledged.
+ * API to learn its real state. A paid order confirms the sale; a failed,
+ * cancelled or expired one cancels it and returns its stock (TES-75). Safe to
+ * repeat: a notification that changes nothing is simply acknowledged.
  *
  * Returning normally means "done" (the gateway answers 200). Throwing a
  * transient error (ERP or Mercado Pago down) makes Mercado Pago retry later.
@@ -96,6 +97,13 @@ export class PaymentNotificationsService {
       }
     }
 
+    if (target === 'Rejected') {
+      // TES-75: a failed, cancelled or expired payment cancels the sale and
+      // returns its stock. Same order as Paid: if the ERP fails, the payment
+      // stays Pending and the retried notification cancels the sale again.
+      await this.releaseSale(payment.saleId, order.id);
+    }
+
     const changed = await this.paymentsRepository.transition(
       payment.id,
       sourcesOf(target),
@@ -120,6 +128,24 @@ export class PaymentNotificationsService {
       `Order ${order.id} (total ${order.totalAmount}, paid ${order.paidAmount}) does not match payment ${payment.id} amount ${String(payment.amount)}`,
     );
     return false;
+  }
+
+  private async releaseSale(saleId: string, orderId: string): Promise<void> {
+    try {
+      const sale = await this.salesClient.cancelSale(saleId);
+      // The ERP only cancels Ordered sales: another attempt may have paid it
+      if (sale.currentState !== 'Cancelled') {
+        this.logger.log(
+          `Order ${orderId} failed but sale ${saleId} is ${sale.currentState}: kept`,
+        );
+      }
+    } catch (err) {
+      const status = rpcStatusOf(err);
+      if (status === undefined || status >= 500) throw err;
+      this.logger.error(
+        `ERP refused to cancel sale ${saleId} (status ${status}) for failed order ${orderId}: check it by hand`,
+      );
+    }
   }
 
   private async confirmSale(saleId: string, orderId: string): Promise<void> {

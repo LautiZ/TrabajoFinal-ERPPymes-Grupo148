@@ -31,4 +31,9 @@ export class SalesController {
   markPaid(@Payload() { id }: SaleIdMessage) {
     return this.salesService.markPaid(id);
   }
+
+  @MessagePattern(ERP_PATTERNS.CANCEL_SALE)
+  cancel(@Payload() { id }: SaleIdMessage) {
+    return this.salesService.cancel(id);
+  }
 }

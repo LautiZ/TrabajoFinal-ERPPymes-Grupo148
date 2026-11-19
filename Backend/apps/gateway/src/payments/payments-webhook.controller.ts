@@ -50,8 +50,9 @@ export class PaymentsWebhookController {
   /**
    * Mercado Pago webhook (topic Order). Public: authenticity is checked with
    * the x-signature header, and the order is read again from Mercado Pago, so
-   * the body is never trusted. Updates the payment and, when paid, the sale.
-   * Repeated notifications change nothing. In development expose it with a
+   * the body is never trusted. Updates the payment and the sale: a paid order
+   * marks the sale Paid; a failed, cancelled or expired one cancels the sale
+   * and returns its stock. Repeated notifications change nothing. In development expose it with a
    * tunnel (ngrok http 3000) and register https://<tunnel>/api/payments/webhook
    * in the Mercado Pago app (Webhooks > Configurar notificaciones > Order).
    */

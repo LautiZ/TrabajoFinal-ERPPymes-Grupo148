@@ -34,6 +34,8 @@ describe('SalesService', () => {
     list: jest.fn(),
     findById: jest.fn(),
     markPaid: jest.fn(),
+    cancelUnpaid: jest.fn(),
+    findOrderedOlderThan: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -199,6 +201,89 @@ describe('SalesService', () => {
       expect(await errorOf(service.markPaid('sale-x'))).toMatchObject({
         status: 404,
       });
+    });
+
+    // markPaid and cancelUnpaid race on the same row: if the cancel wins,
+    // the payment gets SALE_CANCELLED (Payments logs a refund)
+    it('answers 409 SALE_CANCELLED when a cancel won the race', async () => {
+      sales.markPaid.mockResolvedValue(false);
+      sales.findById.mockResolvedValue({
+        id: 'sale-1',
+        currentState: 'Cancelled',
+      });
+
+      expect(await errorOf(service.markPaid('sale-1'))).toMatchObject({
+        status: 409,
+        code: SALE_CANCELLED,
+      });
+    });
+  });
+
+  describe('cancel', () => {
+    const cancelled = { id: 'sale-1', currentState: 'Cancelled' } as SaleView;
+
+    it('cancels an Ordered sale and returns it', async () => {
+      sales.cancelUnpaid.mockResolvedValue(true);
+      sales.findById.mockResolvedValue(cancelled);
+
+      expect(await service.cancel('sale-1')).toBe(cancelled);
+      expect(sales.cancelUnpaid).toHaveBeenCalledWith('sale-1');
+    });
+
+    it('is safe to repeat: an already cancelled sale is returned as is', async () => {
+      sales.cancelUnpaid.mockResolvedValue(false);
+      sales.findById.mockResolvedValue(cancelled);
+
+      expect(await service.cancel('sale-1')).toBe(cancelled);
+    });
+
+    // If the payment won the race, the caller sees Paid and keeps the sale
+    it('leaves a paid sale untouched and returns it', async () => {
+      const paid = { id: 'sale-1', currentState: 'Paid' } as SaleView;
+      sales.cancelUnpaid.mockResolvedValue(false);
+      sales.findById.mockResolvedValue(paid);
+
+      expect(await service.cancel('sale-1')).toBe(paid);
+    });
+
+    it('answers 404 for an unknown sale', async () => {
+      sales.cancelUnpaid.mockResolvedValue(false);
+      sales.findById.mockResolvedValue(null);
+
+      expect(await errorOf(service.cancel('sale-x'))).toMatchObject({
+        status: 404,
+      });
+    });
+  });
+
+  describe('cancelExpired', () => {
+    const cutoff = 90;
+
+    it('cancels every Ordered sale older than the given minutes', async () => {
+      sales.findOrderedOlderThan.mockResolvedValue(['s-1', 's-2']);
+      sales.cancelUnpaid.mockResolvedValue(true);
+
+      expect(await service.cancelExpired(cutoff)).toBe(2);
+      expect(sales.findOrderedOlderThan).toHaveBeenCalledWith(90, 50);
+      expect(sales.cancelUnpaid).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not count sales paid between the query and the cancel', async () => {
+      sales.findOrderedOlderThan.mockResolvedValue(['s-1', 's-2']);
+      sales.cancelUnpaid
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      expect(await service.cancelExpired(cutoff)).toBe(1);
+    });
+
+    it('keeps going when one sale fails', async () => {
+      sales.findOrderedOlderThan.mockResolvedValue(['s-1', 's-2']);
+      sales.cancelUnpaid
+        .mockRejectedValueOnce(new Error('deadlock'))
+        .mockResolvedValueOnce(true);
+
+      expect(await service.cancelExpired(cutoff)).toBe(1);
     });
   });
 });

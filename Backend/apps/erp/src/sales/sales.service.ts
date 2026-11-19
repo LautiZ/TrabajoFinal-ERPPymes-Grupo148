@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   INSUFFICIENT_STOCK,
   paginate,
@@ -14,8 +14,14 @@ import { isTransientTransactionError } from '../prisma/prisma-errors';
 import { InsufficientStockError, SaleTotalTooLargeError } from './sale-errors';
 import { SalesRepository } from './sales.repository';
 
+// One run of the expiration job cancels at most this many sales; the rest
+// wait for the next run
+export const EXPIRATION_BATCH_SIZE = 50;
+
 @Injectable()
 export class SalesService {
+  private readonly logger = new Logger(SalesService.name);
+
   constructor(private readonly salesRepository: SalesRepository) {}
 
   async create({ userId, sale }: CreateSaleMessage): Promise<SaleView> {
@@ -69,6 +75,34 @@ export class SalesService {
     }
     // Paid by this call, or already Paid/Dispatched by an earlier one
     return sale;
+  }
+
+  // Called by Payments when the payment fails or expires (TES-75). Only an
+  // Ordered sale is cancelled; any other state is returned unchanged, so the
+  // caller can tell "cancelled now or before" from "already paid".
+  async cancel(id: string): Promise<SaleView> {
+    await this.salesRepository.cancelUnpaid(id);
+    return this.get(id);
+  }
+
+  // Expiration job: unpaid sales past their payment window release their
+  // stock. Each sale is its own transaction; a failure does not stop the rest.
+  async cancelExpired(olderThanMinutes: number): Promise<number> {
+    const ids = await this.salesRepository.findOrderedOlderThan(
+      olderThanMinutes,
+      EXPIRATION_BATCH_SIZE,
+    );
+    let cancelled = 0;
+    for (const id of ids) {
+      try {
+        if (await this.salesRepository.cancelUnpaid(id)) cancelled++;
+      } catch (err) {
+        this.logger.error(
+          `Could not cancel expired sale ${id}: ${String(err)}`,
+        );
+      }
+    }
+    return cancelled;
   }
 
   // RN-05: a malformed quantity is a 400, not a stock conflict

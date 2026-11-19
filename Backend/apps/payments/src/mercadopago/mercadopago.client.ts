@@ -20,6 +20,8 @@ export interface CreateCheckoutInput {
   backUrls: { success: string; failure: string; pending: string };
   // Redirect to the success URL right after an approved payment
   autoReturn: boolean;
+  // The order cannot be paid after this many minutes (the default is 1 day)
+  expirationMinutes: number;
 }
 
 export interface CreatedCheckout {

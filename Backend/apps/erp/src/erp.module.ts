@@ -14,6 +14,12 @@ import { CategoriesService } from './categories/categories.service';
 import { SalesController } from './sales/sales.controller';
 import { SalesRepository } from './sales/sales.repository';
 import { SalesService } from './sales/sales.service';
+import { envs } from './config/envs';
+import {
+  SALE_EXPIRATION_OPTIONS,
+  SaleExpirationJob,
+  SaleExpirationOptions,
+} from './sales/sale-expiration.job';
 
 @Module({
   imports: [PrismaModule],
@@ -34,6 +40,14 @@ import { SalesService } from './sales/sales.service';
     CategoriesService,
     SalesRepository,
     SalesService,
+    SaleExpirationJob,
+    {
+      provide: SALE_EXPIRATION_OPTIONS,
+      useValue: {
+        paymentWindowMinutes: envs.SALE_PAYMENT_WINDOW_MINUTES,
+        intervalMs: 60_000,
+      } satisfies SaleExpirationOptions,
+    },
   ],
 })
 export class ErpModule {}

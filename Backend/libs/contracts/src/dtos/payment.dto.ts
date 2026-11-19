@@ -12,6 +12,9 @@ export type PaymentState = (typeof PAYMENT_STATES)[number];
 // Error code the frontend can look for on a 409 when the sale cannot be paid
 export const SALE_NOT_PAYABLE = 'SALE_NOT_PAYABLE';
 
+// Error code on a 409 when the sale is past its payment window (TES-75)
+export const SALE_PAYMENT_EXPIRED = 'SALE_PAYMENT_EXPIRED';
+
 // The client only says which sale to pay: the amount comes from the ERP (RN-13)
 export class CreatePaymentDto {
   @IsUUID()
