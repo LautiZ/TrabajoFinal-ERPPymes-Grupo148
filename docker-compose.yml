@@ -67,6 +67,7 @@ services:
     env_file: ./Backend/apps/erp/.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=erp
+      SALE_PAYMENT_WINDOW_MINUTES: ${SALE_PAYMENT_WINDOW_MINUTES:-30} # misma ventana que payments
     networks:
       - backend
     depends_on:
@@ -88,6 +89,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=payments
       ERP_MS_HOST: erp
       FRONTEND_URL: http://localhost:8080 # Mercado Pago devuelve al comprador al frontend servido por nginx
+      SALE_PAYMENT_WINDOW_MINUTES: ${SALE_PAYMENT_WINDOW_MINUTES:-30} # misma ventana que erp
     networks:
       - backend
     depends_on:

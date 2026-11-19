@@ -43,12 +43,22 @@ export class PaymentsRepository {
     return this.prisma.payment.findUnique({ where: { mpOrderId } });
   }
 
-  // The latest attempt is the one the frontend polls (RN-11)
-  findLatestBySale(saleId: string): Promise<Payment | null> {
-    return this.prisma.payment.findFirst({
-      where: { saleId },
-      orderBy: { createdAt: 'desc' },
+  // The attempt that represents the sale: the one that paid it (the first, if
+  // a duplicate charge happened), otherwise the latest. A newer attempt can
+  // exist next to the paid one when a late payment arrives, so "latest" alone
+  // could show a Pending or Rejected attempt for a paid sale.
+  async findCurrentBySale(saleId: string): Promise<Payment | null> {
+    const paid = await this.prisma.payment.findFirst({
+      where: { saleId, paymentState: 'Paid' },
+      orderBy: { createdAt: 'asc' },
     });
+    return (
+      paid ??
+      this.prisma.payment.findFirst({
+        where: { saleId },
+        orderBy: { createdAt: 'desc' },
+      })
+    );
   }
 
   // Another attempt of the same sale that was already paid (double charge)

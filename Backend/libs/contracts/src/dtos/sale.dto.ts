@@ -32,6 +32,21 @@ export const INSUFFICIENT_STOCK = 'INSUFFICIENT_STOCK';
 // Error code on a 409 when a payment arrives for a sale that was already cancelled
 export const SALE_CANCELLED = 'SALE_CANCELLED';
 
+// Error code on a 409 when a receipt is asked for a sale that is not paid
+export const SALE_NOT_PAID = 'SALE_NOT_PAID';
+
+// Point of sale prefix of every receipt number: 0001-00000123 (TES-76)
+export const RECEIPT_POINT_OF_SALE = '0001';
+
+/**
+ * Minutes a sale in Ordered can open a payment (TES-75). Each Mercado Pago
+ * order also expires this long after it is created, so the last moment a
+ * sale can be paid is 2 windows after it was registered; only then does the
+ * ERP cancel it and return its stock. Overridable per service with
+ * SALE_PAYMENT_WINDOW_MINUTES (same value in ERP and Payments).
+ */
+export const DEFAULT_SALE_PAYMENT_WINDOW_MINUTES = 30;
+
 // A date alone ("2026-11-17") would be read as UTC midnight, which is the day
 // before in Argentina. Requiring time and offset removes the ambiguity.
 export const ISO_WITH_OFFSET = /T.+(Z|[+-]\d{2}:\d{2})$/;
@@ -128,6 +143,22 @@ export interface SaleSummaryView {
 export interface SaleView extends SaleSummaryView {
   items: SaleItemView[];
   history: SaleHistoryView[];
+}
+
+// What the ERP knows of a receipt; the gateway adds the seller (Auth) and the
+// payment reference (Payments) to build the full receipt
+export interface SaleReceiptView {
+  /** Correlative number assigned when the sale was paid, e.g. 0001-00000123 */
+  receiptNumber: string;
+  saleId: string;
+  saleNumber: number;
+  /** When the sale was paid: the moment the receipt number was assigned */
+  issuedAt: Date;
+  /** Employee who registered the sale (RN-12) */
+  sellerId: string;
+  items: SaleItemView[];
+  /** Equal to the sum of the item subtotals */
+  total: number;
 }
 
 export interface StockConflict {

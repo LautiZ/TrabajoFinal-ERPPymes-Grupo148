@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { CreatableRole } from '@app/contracts';
+import type { CreatableRole, UserSummaryView } from '@app/contracts';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -24,6 +24,14 @@ export class UsersRepository {
 
   findByEmail(email: string) {
     return this.prisma.user.findUnique({ where: { email } });
+  }
+
+  // Inactive users are included: a receipt still names who made the sale
+  findSummary(id: string): Promise<UserSummaryView | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, name: true, surname: true },
+    });
   }
 
   // Returns null when the email is taken. The UNIQUE index decides atomically,

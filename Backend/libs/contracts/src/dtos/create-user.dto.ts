@@ -4,6 +4,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   MinLength,
   ValidateNested,
@@ -51,4 +52,17 @@ export class CreateUserMessage {
   @ValidateNested()
   @Type(() => CreateUserDto)
   user!: CreateUserDto;
+}
+
+export class UserIdMessage {
+  @IsUUID()
+  id!: string;
+}
+
+// What other services may show about a user (e.g. the seller on a receipt):
+// never the email, password hash or sessions
+export interface UserSummaryView {
+  id: string;
+  name: string;
+  surname: string | null;
 }

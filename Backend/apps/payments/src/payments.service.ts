@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { SALE_NOT_PAYABLE } from '@app/contracts';
+import { SALE_NOT_PAYABLE, SALE_PAYMENT_EXPIRED } from '@app/contracts';
 import type {
   CreatePaymentDto,
   PaymentView,
@@ -33,6 +33,7 @@ const toView = (payment: Payment): PaymentView => ({
   state: payment.paymentState,
   // Only a Pending attempt can still be paid: closed ones hide their checkout
   checkoutUrl: payment.paymentState === 'Pending' ? payment.checkoutUrl : null,
+  mpPaymentId: payment.mpPaymentId,
   createdAt: payment.createdAt,
 });
 
@@ -71,6 +72,17 @@ export class PaymentsService {
       return this.resume(open);
     }
 
+    // A new order is payable for one more window, and the ERP cancels unpaid
+    // sales after two: past the first, a new checkout could outlive the sale
+    const windowMs = this.options.paymentWindowMinutes * 60_000;
+    if (Date.now() - new Date(sale.createdAt).getTime() > windowMs) {
+      throw rpcError(
+        409,
+        `The payment window of this sale has expired (${this.options.paymentWindowMinutes} min): register it again`,
+        { code: SALE_PAYMENT_EXPIRED },
+      );
+    }
+
     const reserved = await this.paymentsRepository.reservePending(
       saleId,
       sale.total,
@@ -94,6 +106,7 @@ export class PaymentsService {
           pending: `${this.options.frontendUrl}/payments/pending`,
         },
         autoReturn: true,
+        expirationMinutes: this.options.paymentWindowMinutes,
       });
     } catch (err) {
       // Free the slot so the client can retry; an order Mercado Pago may have
@@ -123,10 +136,11 @@ export class PaymentsService {
     }
   }
 
-  // What the frontend polls after the buyer returns from Mercado Pago: the
-  // state set by the webhook, never the query params of the return URL
+  // The payment of a sale: the attempt that paid it, else the latest one.
+  // Polled after the buyer returns from Mercado Pago (the state comes from the
+  // webhook, never from the return URL) and used for the receipt (TES-76).
   async getBySale({ saleId }: SalePaymentMessage): Promise<PaymentView> {
-    const payment = await this.paymentsRepository.findLatestBySale(saleId);
+    const payment = await this.paymentsRepository.findCurrentBySale(saleId);
     if (!payment) throw rpcError(404, 'The sale has no payment');
     return toView(payment);
   }

@@ -75,6 +75,8 @@ export class MercadoPagoSdkClient extends MercadoPagoClient {
           type: 'online',
           processing_mode: 'manual',
           external_reference: input.externalReference,
+          // ISO 8601 duration counted from the order creation
+          expiration_time: `PT${input.expirationMinutes}M`,
           total_amount: formatCents(totalCents),
           items: input.items.map((item) => ({
             external_code: item.code.slice(0, MAX_EXTERNAL_CODE_LENGTH),
