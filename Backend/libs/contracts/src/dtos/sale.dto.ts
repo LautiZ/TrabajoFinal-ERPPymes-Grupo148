@@ -34,7 +34,7 @@ export const SALE_CANCELLED = 'SALE_CANCELLED';
 
 // A date alone ("2026-11-17") would be read as UTC midnight, which is the day
 // before in Argentina. Requiring time and offset removes the ambiguity.
-const ISO_WITH_OFFSET = /T.+(Z|[+-]\d{2}:\d{2})$/;
+export const ISO_WITH_OFFSET = /T.+(Z|[+-]\d{2}:\d{2})$/;
 
 export class SaleItemDto {
   @IsUUID()
