@@ -33,6 +33,7 @@ const toView = (payment: Payment): PaymentView => ({
   state: payment.paymentState,
   // Only a Pending attempt can still be paid: closed ones hide their checkout
   checkoutUrl: payment.paymentState === 'Pending' ? payment.checkoutUrl : null,
+  mpPaymentId: payment.mpPaymentId,
   createdAt: payment.createdAt,
 });
 
@@ -135,10 +136,11 @@ export class PaymentsService {
     }
   }
 
-  // What the frontend polls after the buyer returns from Mercado Pago: the
-  // state set by the webhook, never the query params of the return URL
+  // The payment of a sale: the attempt that paid it, else the latest one.
+  // Polled after the buyer returns from Mercado Pago (the state comes from the
+  // webhook, never from the return URL) and used for the receipt (TES-76).
   async getBySale({ saleId }: SalePaymentMessage): Promise<PaymentView> {
-    const payment = await this.paymentsRepository.findLatestBySale(saleId);
+    const payment = await this.paymentsRepository.findCurrentBySale(saleId);
     if (!payment) throw rpcError(404, 'The sale has no payment');
     return toView(payment);
   }

@@ -22,6 +22,8 @@ export class PaymentResponseDto implements PaymentView {
    * @example https://www.mercadopago.com.ar/checkout/v1/redirect?order_id=ORD01...
    */
   checkoutUrl!: string | null;
+  /** Mercado Pago payment id, null until paid. It is the payment reference of the receipt @example PAY01M7RGAD6FM87GHV6Z254XSXNF */
+  mpPaymentId!: string | null;
   createdAt!: Date;
 }
 
