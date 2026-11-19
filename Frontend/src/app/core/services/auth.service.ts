@@ -3,7 +3,7 @@ import { Observable, catchError, finalize, map, of } from 'rxjs';
 import {
   AuthUser,
   LoginRequest,
-  RegisterRequest,
+  LoginUser,
   SessionEndReason,
   UserRole,
 } from '../models/auth.model';
@@ -13,25 +13,23 @@ import { TokenStorageService } from './token-storage.service';
 
 export const AUTH_ENDPOINTS = {
   login: 'auth/login',
-  register: 'auth/register',
   logout: 'auth/logout',
 } as const;
 
-/** Login y registro: no llevan token y un 401 acá significa "credenciales inválidas". */
+/** El login no lleva token y un 401 acá significa "credenciales inválidas". */
 export function isPublicAuthUrl(url: string): boolean {
-  return /\/auth\/(login|register)(\?|#|$)/.test(url);
+  return /\/auth\/login(\?|#|$)/.test(url);
 }
 
-/** Cualquier endpoint de autenticación (login, registro y logout). */
+/** Cualquier endpoint de autenticación (login y logout). */
 export function isAuthUrl(url: string): boolean {
-  return /\/auth\/(login|register|logout)(\?|#|$)/.test(url);
+  return /\/auth\/(login|logout)(\?|#|$)/.test(url);
 }
 
-/** Respuesta de login: se acepta `accessToken`, `access_token` o `token`. */
+/** Respuesta del login: `{ accessToken, user }`. */
 interface LoginResponse {
   accessToken?: string;
-  access_token?: string;
-  token?: string;
+  user?: LoginUser;
 }
 
 interface Session {
@@ -81,14 +79,18 @@ export class AuthService {
   login(credentials: LoginRequest): Observable<AuthUser> {
     return this.api
       .post<LoginResponse>(AUTH_ENDPOINTS.login, credentials)
-      .pipe(map((response) => this.startSession(readToken(response))));
+      .pipe(map((response) => this.startSession(readToken(response), response.user)));
   }
-  createUser(data: { email: string; password: string; name: string; surname?: string; role: string }): Observable<void> {
+
+  /** Alta de un usuario por parte del Owner/Admin (`POST /users`). No inicia sesión. */
+  createUser(data: {
+    email: string;
+    password: string;
+    name: string;
+    surname?: string;
+    role: string;
+  }): Observable<void> {
     return this.api.post<unknown>('users', data).pipe(map(() => undefined));
-  }
-  /** Registro público de arranque (RN-16.4). No inicia sesión. */
-  register(data: RegisterRequest): Observable<void> {
-    return this.api.post<unknown>(AUTH_ENDPOINTS.register, data).pipe(map(() => undefined));
   }
 
   /**
@@ -142,7 +144,7 @@ export class AuthService {
     return role !== null && roles.includes(role);
   }
 
-  private startSession(token: string): AuthUser {
+  private startSession(token: string, profile?: LoginUser): AuthUser {
     const payload = decodeJwt(token);
     if (!payload) {
       throw new Error('La respuesta de autenticación no es válida.');
@@ -152,7 +154,10 @@ export class AuthService {
       throw new Error('El servidor devolvió una sesión que ya venció.');
     }
 
-    const user = toAuthUser(payload);
+    if (profile) {
+      this.tokens.setProfile({ id: profile.id, name: profile.name, surname: profile.surname });
+    }
+    const user = toAuthUser(payload, profile ?? this.tokens.getProfile());
     this.tokens.set(token);
     this.session.set({ user, expiresAt });
     this._lastEndReason.set(null);
@@ -177,7 +182,7 @@ export class AuthService {
       this._lastEndReason.set('expired');
       return;
     }
-    this.session.set({ user: toAuthUser(payload), expiresAt });
+    this.session.set({ user: toAuthUser(payload, this.tokens.getProfile()), expiresAt });
     this.scheduleExpiry(expiresAt);
   }
 
@@ -210,7 +215,7 @@ export class AuthService {
 }
 
 function readToken(response: LoginResponse): string {
-  const token = response.accessToken ?? response.access_token ?? response.token;
+  const token = response.accessToken;
   if (typeof token !== 'string' || !token) {
     throw new Error('El servidor no devolvió un token de acceso.');
   }

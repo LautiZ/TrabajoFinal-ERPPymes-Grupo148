@@ -8,10 +8,12 @@ const sale = (currentState: SaleState): Sale => ({
   currentState,
   createdAt: '',
 });
-const payment = (paymentState: PaymentState): Payment => ({
+const payment = (state: PaymentState): Payment => ({
   id: 'pay1',
   saleId: 's1',
-  paymentState,
+  state,
+  checkoutUrl: null,
+  createdAt: '',
   amount: 100,
 });
 
@@ -24,6 +26,7 @@ describe('resolvePaymentStatus', () => {
 
   it('rechazado cuando el pago fue rechazado o la venta cancelada', () => {
     expect(resolvePaymentStatus(sale('Ordered'), payment('Rejected'))).toBe('rejected');
+    expect(resolvePaymentStatus(sale('Ordered'), payment('Refunded'))).toBe('rejected');
     expect(resolvePaymentStatus(sale('Cancelled'), null)).toBe('rejected');
   });
 

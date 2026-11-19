@@ -32,10 +32,10 @@ El ERP MS todavía no expone estos endpoints (TES-1), así que las formas siguie
 supuestos** a validar con backend. Los decimales de PostgreSQL pueden llegar como string; el
 servicio los normaliza a `number`.
 
-- `GET /products?page&limit&search&sortBy&sortOrder&categoryId&stockStatus&lowStockThreshold`
+- `GET /products?page&limit&search&sortBy&sortOrder&categoryId&stockStatus`
   → `{ data: Product[], meta: { total, page, limit, totalPages } }`
   - `sortBy`: `name | sku | category | price | stock`.
-  - `stockStatus=low`: productos con `0 < stock <= lowStockThreshold`; `stockStatus=out`:
+  - `stockStatus=low`: productos con `0 < stock <= lowStockThreshold` (el de cada producto); `stockStatus=out`:
     `stock <= 0`. Son conjuntos **disjuntos** (el resumen calcula "normal" como el resto).
   - Devuelve también productos pausados; los eliminados no.
   - Cada producto incluye `category: { id, name }`.
@@ -48,8 +48,9 @@ servicio los normaliza a `number`.
 
 ## Decisiones y pendientes
 
-- **Umbral de "stock bajo":** el producto no tiene un mínimo propio en el modelo de datos, así que
-  el umbral es una preferencia por navegador (por defecto 10, editable en la cabecera de la tabla).
+- **Stock bajo:** cada producto tiene su propio mínimo (`lowStockThreshold`, editable en el formulario;
+  `0` = sin alerta). Un producto está en "stock bajo" cuando `0 < stock <= lowStockThreshold`.
+  Los conteos de la cabecera salen de `GET /products/stock-summary`; el filtro usa `stockStatus=low|out`.
 - **Roles:** `INVENTORY_WRITE_ROLES` incluye `OWNER`, `ADMIN`, `EMPLOYEE` y `VENDEDOR` (el nombre
   que hoy usa el guard de rutas para el empleado). Ajustar cuando TES-49 defina los roles finales.
 - **Catálogo de Ventas:** el POS usa su propio `CatalogService`; puede migrarse a `InventoryService`.

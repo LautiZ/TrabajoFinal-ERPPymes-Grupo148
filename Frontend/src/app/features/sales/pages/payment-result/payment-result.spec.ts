@@ -99,7 +99,14 @@ describe('PaymentResult', () => {
   it('rechazado: conserva el carrito y ofrece reintentar', async () => {
     sales.getSale.mockReturnValue(of(sale('Ordered')));
     payments.getPaymentBySale.mockReturnValue(
-      of({ id: 'p', saleId: 'sale-1', paymentState: 'Rejected', amount: 100 } as Payment),
+      of({
+        id: 'p',
+        saleId: 'sale-1',
+        state: 'Rejected',
+        amount: 100,
+        checkoutUrl: null,
+        createdAt: '',
+      } as Payment),
     );
     const fixture = await render('failure');
 

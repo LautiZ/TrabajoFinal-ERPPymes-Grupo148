@@ -5,7 +5,7 @@ import { createJwt } from '../testing/jwt';
 import { createMemoryStorage } from '../testing/storage';
 import { API_URL } from './api.service';
 import { AuthService, isAuthUrl, isPublicAuthUrl } from './auth.service';
-import { TOKEN_STORAGE, TOKEN_STORAGE_KEY } from './token-storage.service';
+import { PROFILE_STORAGE_KEY, TOKEN_STORAGE, TOKEN_STORAGE_KEY } from './token-storage.service';
 
 const BASE = 'http://api.test';
 
@@ -13,8 +13,11 @@ describe('AuthService', () => {
   let storage: Storage;
   let http: HttpTestingController;
 
-  function create(initialToken?: string): AuthService {
-    storage = createMemoryStorage(initialToken ? { [TOKEN_STORAGE_KEY]: initialToken } : {});
+  function create(initialToken?: string, extra: Record<string, string> = {}): AuthService {
+    storage = createMemoryStorage({
+      ...(initialToken ? { [TOKEN_STORAGE_KEY]: initialToken } : {}),
+      ...extra,
+    });
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -53,15 +56,51 @@ describe('AuthService', () => {
       expect(storage.getItem(TOKEN_STORAGE_KEY)).toBe(token);
     });
 
-    it('acepta el token en `access_token` o en `token`', () => {
-      for (const key of ['access_token', 'token']) {
-        TestBed.resetTestingModule();
-        const auth = create();
-        auth.login({ email: 'a@b.com', password: 'x' }).subscribe();
-        http.expectOne(`${BASE}/auth/login`).flush({ [key]: createJwt() });
+    it('el nombre sale del usuario de la respuesta (el JWT real no trae nombre)', () => {
+      const auth = create();
+      const token = createJwt({
+        sub: 'u1',
+        role: 'Owner',
+        email: 'ana@example.com',
+        name: undefined,
+      });
 
-        expect(auth.isAuthenticated()).toBe(true);
-      }
+      auth.login({ email: 'ana@example.com', password: 'x' }).subscribe();
+      http.expectOne(`${BASE}/auth/login`).flush({
+        accessToken: token,
+        user: { id: 'u1', email: 'ana@example.com', name: 'Ana', surname: 'Pérez', role: 'Owner' },
+      });
+
+      expect(auth.currentUser()?.name).toBe('Ana Pérez');
+    });
+
+    it('al recargar la página conserva el nombre del perfil', () => {
+      const auth = create();
+      const token = createJwt({ sub: 'u1', email: 'ana@example.com', name: undefined });
+      auth.login({ email: 'ana@example.com', password: 'x' }).subscribe();
+      http.expectOne(`${BASE}/auth/login`).flush({
+        accessToken: token,
+        user: { id: 'u1', email: 'ana@example.com', name: 'Ana', surname: null, role: 'Employee' },
+      });
+
+      const saved = {
+        [TOKEN_STORAGE_KEY]: storage.getItem(TOKEN_STORAGE_KEY) ?? '',
+        [PROFILE_STORAGE_KEY]: storage.getItem(PROFILE_STORAGE_KEY) ?? '',
+      };
+      TestBed.resetTestingModule();
+      const restored = create(undefined, saved);
+
+      expect(restored.currentUser()?.name).toBe('Ana');
+    });
+
+    it('sin nombre en la respuesta ni en el token usa la parte local del email', () => {
+      const auth = create();
+      auth.login({ email: 'ana@example.com', password: 'x' }).subscribe();
+      http
+        .expectOne(`${BASE}/auth/login`)
+        .flush({ accessToken: createJwt({ email: 'ana@example.com', name: undefined }) });
+
+      expect(auth.currentUser()?.name).toBe('ana');
     });
 
     it('limpia el motivo de cierre anterior al iniciar sesión', () => {
@@ -121,38 +160,27 @@ describe('AuthService', () => {
     });
   });
 
-  describe('register', () => {
-    it('envía los datos y no inicia sesión', () => {
+  describe('createUser', () => {
+    it('da de alta el usuario en POST /users y no inicia sesión', () => {
       const auth = create();
       const data = {
-        email: 'owner@example.com',
+        email: 'emp@example.com',
         password: 'Secreta123',
-        name: 'Ana',
-        surname: 'Pérez',
+        name: 'Eva',
+        surname: 'Gómez',
+        role: 'Employee',
       };
       let done = false;
 
-      auth.register(data).subscribe(() => (done = true));
+      auth.createUser(data).subscribe(() => (done = true));
 
-      const req = http.expectOne(`${BASE}/auth/register`);
+      const req = http.expectOne(`${BASE}/users`);
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(data);
-      req.flush({ id: 'u1', email: 'owner@example.com', role: 'Owner' });
+      req.flush({ id: 'u2' });
 
       expect(done).toBe(true);
       expect(auth.isAuthenticated()).toBe(false);
-    });
-
-    it('propaga los errores del servidor (p. ej. registro deshabilitado)', () => {
-      const auth = create();
-      let status: number | undefined;
-
-      auth.register({ email: 'a@b.com', password: 'x', name: 'A' }).subscribe({
-        error: (e: { status: number }) => (status = e.status),
-      });
-      http.expectOne(`${BASE}/auth/register`).flush({}, { status: 403, statusText: 'Forbidden' });
-
-      expect(status).toBe(403);
     });
   });
 
@@ -333,9 +361,9 @@ describe('AuthService', () => {
 });
 
 describe('detección de endpoints de autenticación', () => {
-  it('login y registro son públicos', () => {
+  it('solo el login es público', () => {
     expect(isPublicAuthUrl('http://api.test/auth/login')).toBe(true);
-    expect(isPublicAuthUrl('http://api.test/auth/register?x=1')).toBe(true);
+    expect(isPublicAuthUrl('http://api.test/auth/register')).toBe(false);
     expect(isPublicAuthUrl('http://api.test/auth/logout')).toBe(false);
     expect(isPublicAuthUrl('http://api.test/products')).toBe(false);
   });

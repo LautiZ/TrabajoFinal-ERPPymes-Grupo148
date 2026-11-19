@@ -60,12 +60,18 @@ export function isExpired(expiresAt: number, now: number = Date.now()): boolean 
   return now >= expiresAt;
 }
 
-export function toAuthUser(payload: JwtPayload): AuthUser {
+/** Nombre para mostrar: perfil del login (nombre y apellido) > claim `name` > parte local del email. */
+export function toAuthUser(
+  payload: JwtPayload,
+  profile?: { id: string; name: string; surname?: string | null } | null,
+): AuthUser {
   const email = payload.email ?? '';
+  const own = profile && profile.id === payload.sub ? profile : null;
+  const fullName = own ? [own.name, own.surname].filter(Boolean).join(' ').trim() : '';
   return {
     id: payload.sub,
     email,
-    name: payload.name ?? (email ? email.split('@')[0] : 'Usuario'),
+    name: fullName || payload.name || (email ? email.split('@')[0] : 'Usuario'),
     role: payload.role,
   };
 }

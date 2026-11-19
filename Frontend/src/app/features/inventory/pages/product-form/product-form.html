@@ -92,6 +92,22 @@
     }
   </mat-form-field>
 
+  <mat-form-field appearance="outline">
+    <mat-label>Stock mínimo (alerta de stock bajo)</mat-label>
+    <input matInput type="number" step="any" min="0" formControlName="lowStockThreshold" required />
+    <mat-hint
+      >Se considera "stock bajo" cuando el stock llega a este valor o menos. 0 = sin
+      alerta.</mat-hint
+    >
+    @if (form.controls.lowStockThreshold.hasError('required')) {
+    <mat-error>El stock mínimo es obligatorio (usá 0 para no alertar).</mat-error>
+    } @else if (form.controls.lowStockThreshold.hasError('min')) {
+    <mat-error>El stock mínimo no puede ser negativo.</mat-error>
+    } @else if (form.controls.lowStockThreshold.hasError('maxDecimals')) {
+    <mat-error>Máximo 3 decimales.</mat-error>
+    }
+  </mat-form-field>
+
   <mat-slide-toggle formControlName="active" class="form__toggle">
     Producto activo (disponible para la venta)
   </mat-slide-toggle>

@@ -6,17 +6,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
-import { REGISTER_PATH } from '../../../../core/auth-paths';
+import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../../core/utils/api-error';
 import { safeReturnUrl } from '../../../../core/utils/return-url';
 
-/** Aviso informativo según por qué se llegó al login (parámetros `reason` y `registered`). */
+/** Aviso informativo según por qué se llegó al login (parámetro `reason`). */
 export function loginNotice(params: ParamMap): string | null {
-  if (params.get('registered')) {
-    return 'Tu cuenta fue creada. Ingresá con tu email y contraseña.';
-  }
   switch (params.get('reason')) {
     case 'expired':
       return 'Tu sesión expiró. Ingresá de nuevo para continuar.';
@@ -55,7 +51,6 @@ export function loginErrorMessage(error: unknown): string {
 @Component({
   imports: [
     ReactiveFormsModule,
-    RouterLink,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
@@ -75,7 +70,6 @@ export class Login {
 
   private readonly returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
 
-  protected readonly registerPath = REGISTER_PATH;
   protected readonly notice = loginNotice(this.route.snapshot.queryParamMap);
   protected readonly showPassword = signal(false);
   protected readonly submitting = signal(false);
