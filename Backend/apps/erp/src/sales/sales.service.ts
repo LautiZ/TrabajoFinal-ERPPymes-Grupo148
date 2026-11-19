@@ -1,11 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   INSUFFICIENT_STOCK,
   paginate,
+  RECEIPT_POINT_OF_SALE,
   SALE_CANCELLED,
+  SALE_NOT_PAID,
   type CreateSaleMessage,
   type ListSalesDto,
   type PaginatedResponse,
+  type SaleReceiptView,
+  type SaleState,
   type SaleSummaryView,
   type SaleView,
 } from '@app/contracts';
@@ -14,8 +18,20 @@ import { isTransientTransactionError } from '../prisma/prisma-errors';
 import { InsufficientStockError, SaleTotalTooLargeError } from './sale-errors';
 import { SalesRepository } from './sales.repository';
 
+const RECEIPT_STATES: readonly SaleState[] = ['Paid', 'Dispatched'];
+
+// 0001-00000123: point of sale and the correlative padded to 8 digits
+export const formatReceiptNumber = (n: number) =>
+  `${RECEIPT_POINT_OF_SALE}-${String(n).padStart(8, '0')}`;
+
+// One run of the expiration job cancels at most this many sales; the rest
+// wait for the next run
+export const EXPIRATION_BATCH_SIZE = 50;
+
 @Injectable()
 export class SalesService {
+  private readonly logger = new Logger(SalesService.name);
+
   constructor(private readonly salesRepository: SalesRepository) {}
 
   async create({ userId, sale }: CreateSaleMessage): Promise<SaleView> {
@@ -69,6 +85,61 @@ export class SalesService {
     }
     // Paid by this call, or already Paid/Dispatched by an earlier one
     return sale;
+  }
+
+  // Receipt data of a paid sale (TES-76). Dispatched sales were paid first,
+  // so they keep their receipt. The number was assigned by markPaid.
+  async receipt(id: string): Promise<SaleReceiptView> {
+    const sale = await this.get(id);
+    const paidAt = sale.history.find((step) => step.state === 'Paid');
+    if (
+      !RECEIPT_STATES.includes(sale.currentState) ||
+      sale.receiptNumber === null ||
+      !paidAt
+    ) {
+      throw rpcError(
+        409,
+        `Sale is not paid (current state: ${sale.currentState})`,
+        { code: SALE_NOT_PAID },
+      );
+    }
+    return {
+      receiptNumber: formatReceiptNumber(sale.receiptNumber),
+      saleId: sale.id,
+      saleNumber: sale.saleNumber,
+      issuedAt: paidAt.createdAt,
+      sellerId: sale.userId,
+      items: sale.items,
+      total: sale.total,
+    };
+  }
+
+  // Called by Payments when the payment fails or expires (TES-75). Only an
+  // Ordered sale is cancelled; any other state is returned unchanged, so the
+  // caller can tell "cancelled now or before" from "already paid".
+  async cancel(id: string): Promise<SaleView> {
+    await this.salesRepository.cancelUnpaid(id);
+    return this.get(id);
+  }
+
+  // Expiration job: unpaid sales past their payment window release their
+  // stock. Each sale is its own transaction; a failure does not stop the rest.
+  async cancelExpired(olderThanMinutes: number): Promise<number> {
+    const ids = await this.salesRepository.findOrderedOlderThan(
+      olderThanMinutes,
+      EXPIRATION_BATCH_SIZE,
+    );
+    let cancelled = 0;
+    for (const id of ids) {
+      try {
+        if (await this.salesRepository.cancelUnpaid(id)) cancelled++;
+      } catch (err) {
+        this.logger.error(
+          `Could not cancel expired sale ${id}: ${String(err)}`,
+        );
+      }
+    }
+    return cancelled;
   }
 
   // RN-05: a malformed quantity is a 400, not a stock conflict

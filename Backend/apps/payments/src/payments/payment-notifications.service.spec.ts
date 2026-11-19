@@ -47,7 +47,7 @@ const order = (overrides: Record<string, unknown> = {}) => ({
 
 describe('PaymentNotificationsService', () => {
   let service: PaymentNotificationsService;
-  const sales = { markPaid: jest.fn() };
+  const sales = { markPaid: jest.fn(), cancelSale: jest.fn() };
   const payments = {
     findByOrderId: jest.fn(),
     transition: jest.fn(),
@@ -209,20 +209,76 @@ describe('PaymentNotificationsService', () => {
     expect(payments.transition).not.toHaveBeenCalled();
   });
 
-  it('records a rejected payment without touching the sale', async () => {
-    mercadoPago.getOrder.mockResolvedValue(
-      order({ status: 'failed', paymentId: 'PAY02' }),
+  // TES-75: a failed payment cancels the sale and returns its stock
+  it.each(['failed', 'canceled', 'expired'])(
+    'cancels the sale and records the payment as rejected when the order is %s',
+    async (status) => {
+      sales.cancelSale.mockResolvedValue({ currentState: 'Cancelled' });
+      mercadoPago.getOrder.mockResolvedValue(
+        order({ status, paymentId: 'PAY02' }),
+      );
+
+      await service.handle(notification);
+
+      expect(sales.markPaid).not.toHaveBeenCalled();
+      expect(sales.cancelSale).toHaveBeenCalledWith('sale-1');
+      expect(payments.transition).toHaveBeenCalledWith(
+        'pay-1',
+        ['Pending'],
+        'Rejected',
+        'PAY02',
+      );
+    },
+  );
+
+  // Same order as Paid: if the ERP fails, the retry must cancel the sale again
+  it('cancels the sale before recording the rejection', async () => {
+    mercadoPago.getOrder.mockResolvedValue(order({ status: 'failed' }));
+    sales.cancelSale.mockRejectedValue(
+      new RpcException({ status: 503, message: 'ERP service unavailable' }),
     );
+
+    expect(await errorOf(service.handle(notification))).toMatchObject({
+      status: 503,
+    });
+    expect(payments.transition).not.toHaveBeenCalled();
+  });
+
+  it('still records the rejection when another attempt already paid the sale', async () => {
+    mercadoPago.getOrder.mockResolvedValue(order({ status: 'failed' }));
+    sales.cancelSale.mockResolvedValue({ currentState: 'Paid' });
 
     await service.handle(notification);
 
-    expect(sales.markPaid).not.toHaveBeenCalled();
     expect(payments.transition).toHaveBeenCalledWith(
       'pay-1',
       ['Pending'],
       'Rejected',
-      'PAY02',
+      'PAY01',
     );
+  });
+
+  it('records the rejection and does not retry when the ERP answers a 4xx', async () => {
+    mercadoPago.getOrder.mockResolvedValue(order({ status: 'failed' }));
+    sales.cancelSale.mockRejectedValue(
+      new RpcException({ status: 404, message: 'Sale not found' }),
+    );
+
+    await service.handle(notification);
+
+    expect(payments.transition).toHaveBeenCalled();
+  });
+
+  it('does not cancel the sale again on a repeated rejection', async () => {
+    payments.findByOrderId.mockResolvedValue(
+      payment({ paymentState: 'Rejected' }),
+    );
+    mercadoPago.getOrder.mockResolvedValue(order({ status: 'failed' }));
+
+    await service.handle(notification);
+
+    expect(sales.cancelSale).not.toHaveBeenCalled();
+    expect(payments.transition).not.toHaveBeenCalled();
   });
 
   it('records nothing while the order is still in progress', async () => {

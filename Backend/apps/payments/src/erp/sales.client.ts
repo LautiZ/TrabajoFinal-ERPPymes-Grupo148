@@ -27,6 +27,12 @@ export class SalesClient {
     return this.send(ERP_PATTERNS.MARK_SALE_PAID, id);
   }
 
+  // Ordered -> Cancelled with stock returned. Safe to repeat; a sale in any
+  // other state (e.g. paid by another attempt) comes back unchanged
+  cancelSale(id: string): Promise<SaleView> {
+    return this.send(ERP_PATTERNS.CANCEL_SALE, id);
+  }
+
   private async send(pattern: string, id: string): Promise<SaleView> {
     try {
       return await firstValueFrom(

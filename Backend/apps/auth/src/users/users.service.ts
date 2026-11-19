@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
-import type { CreatableRole, CreateUserMessage, Role } from '@app/contracts';
+import type {
+  CreatableRole,
+  CreateUserMessage,
+  Role,
+  UserSummaryView,
+} from '@app/contracts';
 import { hashPassword } from '../security/password';
 import { UsersRepository } from './users.repository';
 
@@ -14,6 +19,14 @@ const CAN_CREATE: Record<Role, readonly CreatableRole[]> = {
 @Injectable()
 export class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
+
+  // Public summary for other services (the seller on a receipt, TES-76)
+  async getSummary(id: string): Promise<UserSummaryView> {
+    const user = await this.usersRepository.findSummary(id);
+    if (!user)
+      throw new RpcException({ status: 404, message: 'User not found' });
+    return user;
+  }
 
   async create({ actorRole, user }: CreateUserMessage) {
     // Cheap check first: argon2 is slow on purpose

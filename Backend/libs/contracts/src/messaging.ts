@@ -10,6 +10,7 @@ export const AUTH_PATTERNS = {
   LOGIN: 'auth.login',
   VALIDATE_TOKEN: 'auth.token.validate',
   LOGOUT: 'auth.logout',
+  GET_USER: 'auth.users.get',
 } as const;
 
 export const ERP_PATTERNS = {
@@ -28,6 +29,8 @@ export const ERP_PATTERNS = {
   LIST_SALES: 'erp.sales.list',
   GET_SALE: 'erp.sales.get',
   MARK_SALE_PAID: 'erp.sales.mark-paid',
+  CANCEL_SALE: 'erp.sales.cancel',
+  GET_SALE_RECEIPT: 'erp.sales.receipt',
   ANALYTICS_SUMMARY: 'erp.analytics.summary',
   ANALYTICS_SALES_OVER_TIME: 'erp.analytics.sales-over-time',
   ANALYTICS_TOP_PRODUCTS: 'erp.analytics.top-products',

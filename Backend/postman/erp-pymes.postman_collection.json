@@ -1,0 +1,556 @@
+{
+  "info": {
+    "_postman_id": "af47e601-65d5-4365-85cc-5b71ceef1b32",
+    "name": "ERP Pymes API",
+    "description": "Backend del ERP para pymes (tesis, Grupo 148). Todo entra por el gateway HTTP (puerto 3000, prefijo /api), que reenvía por TCP a cada microservicio: Auth, ERP y Payments. Las carpetas siguen esa división.\n\nUso:\n1. Ajustá `baseUrl` si no corrés el stack local.\n2. Ejecutá Auth MS > Login: guarda el token en `accessToken` y lo usan las demás requests (Bearer heredado de la colección).\n3. Crear categoría, producto o venta guarda el id en `categoryId`, `productId` o `saleId` para encadenar requests.\n\nDocumentación completa: {{baseUrl}}/api/docs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Gateway",
+      "description": "Rutas propias del gateway, sin microservicio detrás.",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Estado del gateway. Público y sin prefijo /api."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth MS",
+      "description": "Sesiones y usuarios (microservicio auth). No hay registro público: el Owner sale del seed y crea al resto de los usuarios.",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login OK', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@pyme.test\",\n  \"password\": \"<password>\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Log in with email and password. Guarda el accessToken en la variable de colección. Tiene rate limit (429 si hay demasiados intentos)."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Revoke the current session (204). El token deja de servir aunque no haya vencido."
+          },
+          "response": []
+        },
+        {
+          "name": "Create user",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"empleado@pyme.test\",\n  \"password\": \"Cambiar123!\",\n  \"name\": \"Juan\",\n  \"surname\": \"Perez\",\n  \"role\": \"Employee\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Create an Admin or Employee user. Owner crea Admin/Employee; Admin solo crea Employee."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ERP MS",
+      "description": "Catálogo, stock y ventas (microservicio erp).",
+      "item": [
+        {
+          "name": "Categories",
+          "item": [
+            {
+              "name": "List categories",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/categories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "categories"]
+                },
+                "description": "List active categories, sorted by name."
+              },
+              "response": []
+            },
+            {
+              "name": "Create category",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.collectionVariables.set('categoryId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Almacén\",\n  \"description\": \"Productos de almacén\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/categories",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "categories"]
+                },
+                "description": "Create a category. Guarda el id en categoryId."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete category",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/categories/{{categoryId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "categories", "{{categoryId}}"]
+                },
+                "description": "Logical delete; 409 while active products use the category. Its name can be reused afterwards."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Products",
+          "item": [
+            {
+              "name": "List products",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products?page=1&limit=20&sortBy=name&sortOrder=asc",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products"],
+                  "query": [
+                    { "key": "page", "value": "1", "description": "Default 1" },
+                    { "key": "limit", "value": "20", "description": "1-100" },
+                    { "key": "search", "value": "", "description": "Name or SKU, max 100 chars", "disabled": true },
+                    { "key": "sortBy", "value": "name", "description": "name | sku | category | price | stock (default name)" },
+                    { "key": "sortOrder", "value": "asc", "description": "asc | desc (default asc)" },
+                    { "key": "categoryId", "value": "{{categoryId}}", "description": "UUID", "disabled": true },
+                    { "key": "stockStatus", "value": "low", "description": "low | out", "disabled": true },
+                    { "key": "active", "value": "true", "description": "true | false", "disabled": true }
+                  ]
+                },
+                "description": "List products (deleted ones excluded) with search, filters, sorting and pagination. Los filtros opcionales vienen deshabilitados; activalos en Params. lowStockThreshold como query está deprecado e ignorado (el umbral es por producto)."
+              },
+              "response": []
+            },
+            {
+              "name": "Stock summary",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/stock-summary",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "stock-summary"]
+                },
+                "description": "Count of products in each stock status, for the inventory indicators."
+              },
+              "response": []
+            },
+            {
+              "name": "Get product",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{productId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{productId}}"]
+                },
+                "description": "Get a product by id."
+              },
+              "response": []
+            },
+            {
+              "name": "Create product",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.collectionVariables.set('productId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Yerba mate 500 g\",\n  \"sku\": \"YER-500\",\n  \"price\": 2300,\n  \"stock\": 20,\n  \"unit\": \"Unit\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"active\": true,\n  \"lowStockThreshold\": 5\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/products",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products"]
+                },
+                "description": "Create a product; a positive initial stock is recorded as an Income movement. unit: Unit | Kg | Meter | Liter. Guarda el id en productId."
+              },
+              "response": []
+            },
+            {
+              "name": "Update product",
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"price\": 2500,\n  \"lowStockThreshold\": 8\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{productId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{productId}}"]
+                },
+                "description": "Update product data; stock is not editable here (use stock-movements)."
+              },
+              "response": []
+            },
+            {
+              "name": "Adjust stock",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"Income\",\n  \"quantity\": 10,\n  \"reason\": \"Reposición de proveedor\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{productId}}/stock-movements",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{productId}}", "stock-movements"]
+                },
+                "description": "Manual stock adjustment with a reason; recorded as an Adjustment movement. type: Income | Outcome."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete product",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/products/{{productId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "products", "{{productId}}"]
+                },
+                "description": "Logical delete: the product stays in history but leaves the catalog (RN-04)."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Sales",
+          "item": [
+            {
+              "name": "Create sale",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.collectionVariables.set('saleId', pm.response.json().id);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    { \"productId\": \"{{productId}}\", \"quantity\": 1 }\n  ]\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/sales",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "sales"]
+                },
+                "description": "Register a sale in Ordered and reserve its stock; prices and total come from the backend. 409 INSUFFICIENT_STOCK lists the items that no longer fit. Guarda el id en saleId."
+              },
+              "response": []
+            },
+            {
+              "name": "List sales",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/sales?page=1&limit=20",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "sales"],
+                  "query": [
+                    { "key": "page", "value": "1", "description": "Default 1" },
+                    { "key": "limit", "value": "20", "description": "1-100" },
+                    { "key": "state", "value": "Paid", "description": "Ordered | Paid | Dispatched | Cancelled", "disabled": true },
+                    { "key": "from", "value": "2026-11-01T00:00:00.000-03:00", "description": "Inclusive. ISO 8601 with time and offset", "disabled": true },
+                    { "key": "to", "value": "2026-12-01T00:00:00.000-03:00", "description": "EXCLUSIVE (unlike analytics). ISO 8601 with time and offset", "disabled": true }
+                  ]
+                },
+                "description": "List sales, newest first, filtered by state and creation date. Ojo: acá `to` es exclusivo (en analytics es inclusivo). 400 si from > to."
+              },
+              "response": []
+            },
+            {
+              "name": "Get sale",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/sales/{{saleId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "sales", "{{saleId}}"]
+                },
+                "description": "Get a sale with its items and state history. receiptNumber se asigna cuando la venta queda Paid."
+              },
+              "response": []
+            },
+            {
+              "name": "Get sale receipt",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/sales/{{saleId}}/receipt",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "sales", "{{saleId}}", "receipt"]
+                },
+                "description": "Receipt of a paid sale (TES-76): unique correlative number, date, seller, items with price and subtotal, total and the Mercado Pago payment reference. No es factura fiscal. Cualquier rol. 409 si la venta no está pagada (Ordered o Cancelled), 404 si no existe. seller/payment pueden venir null."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Analytics",
+          "item": [
+            {
+              "name": "Summary (KPIs)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/analytics/summary?from=2026-11-01T00:00:00.000-03:00&to=2026-11-30T23:59:59.999-03:00",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "analytics", "summary"],
+                  "query": [
+                    { "key": "from", "value": "2026-11-01T00:00:00.000-03:00", "description": "Required. Inclusive. ISO 8601 with time and offset" },
+                    { "key": "to", "value": "2026-11-30T23:59:59.999-03:00", "description": "Required. Inclusive. ISO 8601 with time and offset" }
+                  ]
+                },
+                "description": "KPIs of the range (inclusive bounds) and of the period of equal length right before it: revenue, salesCount, averageTicket, unitsSold, cancelledCount. Solo Owner/Admin (403 si no). Cuenta solo ventas Paid o Dispatched. 400 si from > to o rango > 5 años."
+              },
+              "response": []
+            },
+            {
+              "name": "Sales over time",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/analytics/sales-over-time?from=2026-11-01T00:00:00.000-03:00&to=2026-11-30T23:59:59.999-03:00&groupBy=day",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "analytics", "sales-over-time"],
+                  "query": [
+                    { "key": "from", "value": "2026-11-01T00:00:00.000-03:00", "description": "Required. Inclusive. ISO 8601 with time and offset" },
+                    { "key": "to", "value": "2026-11-30T23:59:59.999-03:00", "description": "Required. Inclusive. ISO 8601 with time and offset" },
+                    { "key": "groupBy", "value": "day", "description": "day | week | month (default day)" }
+                  ]
+                },
+                "description": "Revenue and sales count per day, week (from Monday) or month, in Argentina time, with zeros for empty periods. Solo Owner/Admin. 400 si hay más de 400 puntos (usá un groupBy mayor)."
+              },
+              "response": []
+            },
+            {
+              "name": "Top products",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/analytics/top-products?from=2026-11-01T00:00:00.000-03:00&to=2026-11-30T23:59:59.999-03:00&limit=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "analytics", "top-products"],
+                  "query": [
+                    { "key": "from", "value": "2026-11-01T00:00:00.000-03:00", "description": "Required. Inclusive. ISO 8601 with time and offset" },
+                    { "key": "to", "value": "2026-11-30T23:59:59.999-03:00", "description": "Required. Inclusive. ISO 8601 with time and offset" },
+                    { "key": "limit", "value": "10", "description": "1-50 (default 10)" }
+                  ]
+                },
+                "description": "Best-selling products of the range by units, then by revenue (price snapshot of each sale). Solo Owner/Admin."
+              },
+              "response": []
+            },
+            {
+              "name": "Inventory value",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/analytics/inventory-value",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "analytics", "inventory-value"]
+                },
+                "description": "Current value of the stock and count of products low on stock or out of it (totalValuation, totalUnits, lowStockCount, outOfStockCount, activeProducts). Solo Owner/Admin."
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payments MS",
+      "description": "Cobros con Mercado Pago, Checkout Pro vía Orders API (microservicio payments).",
+      "item": [
+        {
+          "name": "Create payment (checkout)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"saleId\": \"{{saleId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments"]
+            },
+            "description": "Open the Mercado Pago checkout of a sale in Ordered (any role). Amount and items come from the ERP. If the sale already has an open checkout, that one is returned. Abrí checkoutUrl en incógnito con el comprador de prueba."
+          },
+          "response": []
+        },
+        {
+          "name": "Get payment of sale",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/sale/{{saleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "sale", "{{saleId}}"]
+            },
+            "description": "Latest payment attempt of a sale (any role). Es el polling del front: el estado lo pone el webhook. Paid significa que la venta también quedó Paid."
+          },
+          "response": []
+        },
+        {
+          "name": "Webhook (Mercado Pago)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-signature", "value": "ts=<ts>,v1=<hmac>", "description": "Firma HMAC-SHA256 de Mercado Pago" },
+              { "key": "x-request-id", "value": "<request-id>" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"order\",\n  \"action\": \"order.processed\",\n  \"data\": { \"id\": \"ORD01TEST\" }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/payments/webhook?type=order&data.id=ORD01TEST",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "payments", "webhook"],
+              "query": [
+                { "key": "type", "value": "order" },
+                { "key": "data.id", "value": "ORD01TEST" }
+              ]
+            },
+            "description": "Lo llama Mercado Pago, no el front. Público: valida x-signature y vuelve a leer la orden en MP. Sin una firma válida responde 401, así que esta request sirve para verificar que el endpoint esté expuesto; para probarlo de verdad usá 'Simular notificación' del panel de MP."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "description": "Gateway HTTP" },
+    { "key": "accessToken", "value": "", "description": "Lo completa Auth MS > Login" },
+    { "key": "categoryId", "value": "", "description": "Lo completa ERP MS > Categories > Create category" },
+    { "key": "productId", "value": "", "description": "Lo completa ERP MS > Products > Create product" },
+    { "key": "saleId", "value": "", "description": "Lo completa ERP MS > Sales > Create sale" }
+  ]
+}

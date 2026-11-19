@@ -1,5 +1,9 @@
 import * as Joi from 'joi';
-import { loadAppEnv, validateEnvs } from '@app/contracts';
+import {
+  DEFAULT_SALE_PAYMENT_WINDOW_MINUTES,
+  loadAppEnv,
+  validateEnvs,
+} from '@app/contracts';
 
 loadAppEnv('payments');
 
@@ -17,6 +21,9 @@ interface EnvVars {
   ERP_MS_PORT: number;
   // Where Mercado Pago sends the buyer back after the checkout
   FRONTEND_URL: string;
+  // Must match the ERP: a sale can open a payment this long after it was
+  // registered, and each Mercado Pago order expires this long after creation
+  SALE_PAYMENT_WINDOW_MINUTES: number;
 }
 
 const schema = Joi.object<EnvVars>({
@@ -37,6 +44,10 @@ const schema = Joi.object<EnvVars>({
     .default('http://localhost:4200')
     // Trailing slash would produce //payments/success
     .custom((value: string) => value.replace(/\/+$/, '')),
+  SALE_PAYMENT_WINDOW_MINUTES: Joi.number()
+    .integer()
+    .min(1)
+    .default(DEFAULT_SALE_PAYMENT_WINDOW_MINUTES),
 }).unknown(true);
 
 export const envs = validateEnvs(schema, process.env);

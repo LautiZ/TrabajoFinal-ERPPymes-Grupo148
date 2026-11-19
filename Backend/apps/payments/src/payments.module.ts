@@ -32,7 +32,10 @@ import { PrismaModule } from './prisma/prisma.module';
     SalesClient,
     {
       provide: CHECKOUT_OPTIONS,
-      useValue: { frontendUrl: envs.FRONTEND_URL } satisfies CheckoutOptions,
+      useValue: {
+        frontendUrl: envs.FRONTEND_URL,
+        paymentWindowMinutes: envs.SALE_PAYMENT_WINDOW_MINUTES,
+      } satisfies CheckoutOptions,
     },
   ],
 })

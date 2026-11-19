@@ -41,6 +41,7 @@ const row = (overrides: Record<string, unknown> = {}) => ({
   amount: 3001,
   paymentState: 'Pending',
   mpOrderId: null,
+  mpPaymentId: null,
   checkoutUrl: null,
   createdAt,
   ...overrides,
@@ -52,6 +53,7 @@ const view = {
   amount: 3001,
   state: 'Pending',
   checkoutUrl: 'https://mp.test/checkout?order_id=ORD01',
+  mpPaymentId: null,
   createdAt,
 };
 
@@ -64,13 +66,17 @@ describe('PaymentsService', () => {
     reservePending: jest.fn(),
     attachCheckout: jest.fn(),
     releaseIfUnattached: jest.fn(),
-    findLatestBySale: jest.fn(),
+    findCurrentBySale: jest.fn(),
   };
   const mercadoPago = { createCheckout: jest.fn(), getOrder: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    sales.getSale.mockResolvedValue(sale);
+    // Registered a minute ago: well inside the 30 min payment window
+    sales.getSale.mockResolvedValue({
+      ...sale,
+      createdAt: new Date(Date.now() - 60_000),
+    });
     payments.findPendingBySale.mockResolvedValue(null);
     payments.reservePending.mockResolvedValue(row());
     payments.releaseIfUnattached.mockResolvedValue(true);
@@ -90,7 +96,10 @@ describe('PaymentsService', () => {
         { provide: MercadoPagoClient, useValue: mercadoPago },
         {
           provide: CHECKOUT_OPTIONS,
-          useValue: { frontendUrl: 'http://localhost:4200' },
+          useValue: {
+            frontendUrl: 'http://localhost:4200',
+            paymentWindowMinutes: 30,
+          },
         },
       ],
     }).compile();
@@ -115,6 +124,8 @@ describe('PaymentsService', () => {
           pending: 'http://localhost:4200/payments/pending',
         },
         autoReturn: true,
+        // The order expires with the payment window (TES-75)
+        expirationMinutes: 30,
       });
       expect(payments.attachCheckout).toHaveBeenCalledWith('pay-1', {
         orderId: 'ORD01',
@@ -131,6 +142,32 @@ describe('PaymentsService', () => {
         code: 'SALE_NOT_PAYABLE',
       });
       expect(payments.reservePending).not.toHaveBeenCalled();
+    });
+
+    it('rejects a new checkout once the sale is past its payment window', async () => {
+      sales.getSale.mockResolvedValue({
+        ...sale,
+        createdAt: new Date(Date.now() - 31 * 60_000),
+      });
+
+      expect(await errorOf(service.create({ saleId: 'sale-1' }))).toMatchObject(
+        { status: 409, code: 'SALE_PAYMENT_EXPIRED' },
+      );
+      expect(payments.reservePending).not.toHaveBeenCalled();
+      expect(mercadoPago.createCheckout).not.toHaveBeenCalled();
+    });
+
+    // The open order is still payable until its own expiry
+    it('still resumes an open checkout after the window', async () => {
+      sales.getSale.mockResolvedValue({
+        ...sale,
+        createdAt: new Date(Date.now() - 31 * 60_000),
+      });
+      payments.findPendingBySale.mockResolvedValue(
+        row({ mpOrderId: 'ORD01', checkoutUrl: view.checkoutUrl }),
+      );
+
+      await expect(service.create({ saleId: 'sale-1' })).resolves.toEqual(view);
     });
 
     it('reuses the open checkout instead of creating another order', async () => {
@@ -217,25 +254,28 @@ describe('PaymentsService', () => {
 
   describe('getBySale', () => {
     // The row keeps its checkout url (DB check), but a paid attempt hides it
-    it('returns the latest payment attempt of the sale', async () => {
-      payments.findLatestBySale.mockResolvedValue(
+    it('returns the current payment attempt of the sale', async () => {
+      payments.findCurrentBySale.mockResolvedValue(
         row({
           paymentState: 'Paid',
           mpOrderId: 'ORD01',
+          mpPaymentId: 'PAY01',
           checkoutUrl: view.checkoutUrl,
         }),
       );
 
+      // mpPaymentId is the payment reference printed on the receipt (TES-76)
       await expect(service.getBySale({ saleId: 'sale-1' })).resolves.toEqual({
         ...view,
         state: 'Paid',
         checkoutUrl: null,
+        mpPaymentId: 'PAY01',
       });
-      expect(payments.findLatestBySale).toHaveBeenCalledWith('sale-1');
+      expect(payments.findCurrentBySale).toHaveBeenCalledWith('sale-1');
     });
 
     it('answers 404 when the sale has no payment yet', async () => {
-      payments.findLatestBySale.mockResolvedValue(null);
+      payments.findCurrentBySale.mockResolvedValue(null);
 
       expect(await errorOf(service.getBySale({ saleId: 'sale-1' }))).toEqual({
         status: 404,

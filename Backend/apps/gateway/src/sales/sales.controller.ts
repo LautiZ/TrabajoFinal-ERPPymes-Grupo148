@@ -20,28 +20,47 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import {
+  AUTH_PATTERNS,
+  AUTH_SERVICE,
   CreateSaleDto,
   CreateSaleMessage,
   ERP_PATTERNS,
   ERP_SERVICE,
   ListSalesDto,
+  PAYMENTS_PATTERNS,
+  PAYMENTS_SERVICE,
   SaleIdMessage,
 } from '@app/contracts';
-import type { AuthUser } from '@app/contracts';
+import type {
+  AuthUser,
+  PaymentView,
+  SalePaymentMessage,
+  SaleReceiptView,
+  UserIdMessage,
+  UserSummaryView,
+} from '@app/contracts';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { sendRpc } from '../common/send-rpc';
+import {
+  ReceiptResponseDto,
+  SaleNotPaidResponseDto,
+} from './dto/receipt-response.dto';
 import {
   InsufficientStockResponseDto,
   SalePageResponseDto,
   SaleResponseDto,
 } from './dto/sale-response.dto';
 
-// No @Roles: every role registers sales (RN-16.3)
+// No @Roles: every role registers sales (RN-16.3) and hands out receipts
 @ApiTags('sales')
 @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
 @Controller('sales')
 export class SalesController {
-  constructor(@Inject(ERP_SERVICE) private readonly erpClient: ClientProxy) {}
+  constructor(
+    @Inject(ERP_SERVICE) private readonly erpClient: ClientProxy,
+    @Inject(AUTH_SERVICE) private readonly authClient: ClientProxy,
+    @Inject(PAYMENTS_SERVICE) private readonly paymentsClient: ClientProxy,
+  ) {}
 
   /** Register a sale in Ordered and reserve its stock; prices and total come from the backend (RN-06) */
   @Post()
@@ -92,4 +111,68 @@ export class SalesController {
       { id },
     );
   }
+
+  /**
+   * Receipt of a paid sale (TES-76): unique correlative number, date, seller,
+   * items with price and subtotal, total and the Mercado Pago payment reference.
+   * Not a fiscal invoice. Composed here because each service owns its data:
+   * items and number come from the ERP, the seller from Auth, the payment from
+   * Payments.
+   */
+  @Get(':id/receipt')
+  @ApiOkResponse({ type: ReceiptResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid id' })
+  @ApiNotFoundResponse({ description: 'Sale not found' })
+  @ApiConflictResponse({
+    type: SaleNotPaidResponseDto,
+    description:
+      'The sale is not paid (Ordered or Cancelled), code SALE_NOT_PAID',
+  })
+  async receipt(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ReceiptResponseDto> {
+    // First: a missing or unpaid sale must fail before asking the others
+    const { sellerId, ...receipt } = await sendRpc<
+      SaleReceiptView,
+      SaleIdMessage
+    >(this.erpClient, ERP_PATTERNS.GET_SALE_RECEIPT, { id });
+
+    const [seller, payment] = await Promise.all([
+      orNullIfNotFound(
+        sendRpc<UserSummaryView, UserIdMessage>(
+          this.authClient,
+          AUTH_PATTERNS.GET_USER,
+          { id: sellerId },
+        ),
+      ),
+      orNullIfNotFound(
+        sendRpc<PaymentView, SalePaymentMessage>(
+          this.paymentsClient,
+          PAYMENTS_PATTERNS.GET_SALE_PAYMENT,
+          { saleId: id },
+        ),
+      ),
+    ]);
+
+    return {
+      ...receipt,
+      seller,
+      payment: payment && {
+        id: payment.id,
+        state: payment.state,
+        mpPaymentId: payment.mpPaymentId,
+      },
+    };
+  }
 }
+
+// A missing seller or payment record should not hide a valid receipt; any
+// other error (service down, timeout) still fails the request
+const orNullIfNotFound = async <T>(request: Promise<T>): Promise<T | null> => {
+  try {
+    return await request;
+  } catch (err) {
+    if ((err as { status?: unknown } | null)?.status === 404) return null;
+    throw err;
+  }
+};
