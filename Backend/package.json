@@ -32,6 +32,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./apps/gateway/test/jest-e2e.json",
+    "test:int:erp": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./apps/erp/test/jest-int.json --runInBand",
     "mp:smoke": "ts-node -r tsconfig-paths/register scripts/mp-smoke.ts"
   },
   "dependencies": {
