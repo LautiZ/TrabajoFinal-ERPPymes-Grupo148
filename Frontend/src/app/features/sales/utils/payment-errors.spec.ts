@@ -52,4 +52,11 @@ describe('paymentErrorMessage', () => {
     );
     expect(paymentErrorMessage('raro')).toBe('No se pudo iniciar el pago. Intentá nuevamente.');
   });
+
+  it('una venta vencida (409 SALE_PAYMENT_EXPIRED) también pide armar una venta nueva', () => {
+    const error = new HttpErrorResponse({ status: 409, error: { code: 'SALE_PAYMENT_EXPIRED' } });
+
+    expect(isSaleNotPayable(error)).toBe(true);
+    expect(paymentErrorMessage(error)).toContain('superó el tiempo');
+  });
 });

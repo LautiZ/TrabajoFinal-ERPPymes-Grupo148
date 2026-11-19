@@ -11,13 +11,16 @@ function bodyCode(error: HttpErrorResponse): unknown {
     : undefined;
 }
 
-/** `true` si el backend rechazó el pago porque la venta ya no se puede cobrar. */
+/** Código del `409` cuando la venta superó la ventana de pago: hay que registrarla de nuevo. */
+export const SALE_PAYMENT_EXPIRED = 'SALE_PAYMENT_EXPIRED';
+
+/** `true` si el backend rechazó el pago porque la venta ya no se puede cobrar (o venció). */
 export function isSaleNotPayable(error: unknown): boolean {
-  return (
-    error instanceof HttpErrorResponse &&
-    error.status === 409 &&
-    bodyCode(error) === SALE_NOT_PAYABLE
-  );
+  if (!(error instanceof HttpErrorResponse) || error.status !== 409) {
+    return false;
+  }
+  const code = bodyCode(error);
+  return code === SALE_NOT_PAYABLE || code === SALE_PAYMENT_EXPIRED;
 }
 
 /**
@@ -29,6 +32,9 @@ export function paymentErrorMessage(error: unknown): string {
     return error instanceof Error
       ? error.message
       : 'No se pudo iniciar el pago. Intentá nuevamente.';
+  }
+  if (error.status === 409 && bodyCode(error) === SALE_PAYMENT_EXPIRED) {
+    return 'La venta superó el tiempo para pagarse. Armá una venta nueva.';
   }
   if (isSaleNotPayable(error)) {
     return 'La venta ya no se puede cobrar (está cancelada o ya fue paga). Armá una venta nueva.';
