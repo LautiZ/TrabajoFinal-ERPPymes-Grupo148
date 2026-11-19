@@ -7,10 +7,10 @@
 </app-page-header>
 
 <section class="kpis" aria-label="Indicadores">
-  @for (indicator of indicators; track indicator.label) {
+  @for (indicator of indicators(); track indicator.label) {
   <app-stat-card
     [label]="indicator.label"
-    value="—"
+    [value]="indicator.value"
     [hint]="indicator.hint"
     [icon]="indicator.icon"
     [tone]="indicator.tone ?? 'default'"
