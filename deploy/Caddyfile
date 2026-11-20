@@ -1,0 +1,13 @@
+{$DOMAIN} {
+        encode zstd gzip
+
+        # API straight to the gateway: one proxy hop, so TRUST_PROXY_HOPS=1 keeps the real client IP
+        handle /api/* {
+                reverse_proxy gateway:3000
+        }
+
+        # Everything else is the Angular app served by the frontend nginx
+        handle {
+                reverse_proxy frontend:80
+        }
+}

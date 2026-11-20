@@ -1,0 +1,32 @@
+# Production overrides, layered on top of docker-compose.yml.
+# Enabled on the server via COMPOSE_FILE in the root .env.
+services:
+  caddy:
+    image: caddy:2.11-alpine # pinned, never "latest"
+    container_name: erp-pymes-caddy
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificates: must survive recreates (Let's Encrypt rate limits)
+      - caddy_config:/config
+    networks:
+      - backend
+    depends_on:
+      - gateway
+      - frontend
+
+  frontend:
+    ports: !reset [] # only reachable through Caddy
+
+  payments:
+    environment:
+      FRONTEND_URL: https://${DOMAIN:?} # Mercado Pago sends the buyer back here
+
+volumes:
+  caddy_data:
+  caddy_config:
