@@ -3,9 +3,22 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import type { Mock } from 'vitest';
 import { API_URL } from '../../../core/services/api.service';
+import { Payment } from '../models/payment.model';
 import { createMemoryStorage } from '../testing/factories';
 import { CART_STORAGE } from './cart.service';
 import { PENDING_SALE_KEY, PaymentsService } from './payments.service';
+
+const CHECKOUT = 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=1';
+
+/** Respuesta del Payments MS (PaymentView): el monto de PostgreSQL puede llegar como string. */
+const rawPayment = {
+  id: 'pay1',
+  saleId: 's1',
+  amount: '1500.00',
+  state: 'Pending',
+  checkoutUrl: CHECKOUT,
+  createdAt: '2026-11-18T10:00:00.000Z',
+};
 
 describe('PaymentsService', () => {
   let service: PaymentsService;
@@ -31,93 +44,119 @@ describe('PaymentsService', () => {
 
   afterEach(() => http.verify());
 
-  it('arma las back_urls hacia las rutas de retorno del frontend', () => {
-    const urls = service.buildBackUrls();
+  describe('createPayment', () => {
+    it('envía solo el id de la venta: el Gateway rechaza cualquier otro campo', () => {
+      service.createPayment('s1').subscribe();
 
-    expect(urls.success).toMatch(/\/sales\/payment\/success$/);
-    expect(urls.failure).toMatch(/\/sales\/payment\/failure$/);
-    expect(urls.pending).toMatch(/\/sales\/payment\/pending$/);
+      const req = http.expectOne('http://api.test/payments');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({ saleId: 's1' });
+      req.flush(rawPayment);
+    });
+
+    it('devuelve el pago normalizado con la URL del checkout y el estado', () => {
+      let payment: Payment | undefined;
+      service.createPayment('s1').subscribe((p) => (payment = p));
+
+      http.expectOne('http://api.test/payments').flush(rawPayment);
+
+      expect(payment).toEqual({
+        id: 'pay1',
+        saleId: 's1',
+        amount: 1500,
+        state: 'Pending',
+        checkoutUrl: CHECKOUT,
+        createdAt: '2026-11-18T10:00:00.000Z',
+      });
+    });
+
+    it('si el intento ya se cerró, checkoutUrl llega nulo', () => {
+      let payment: Payment | undefined;
+      service.createPayment('s1').subscribe((p) => (payment = p));
+
+      http
+        .expectOne('http://api.test/payments')
+        .flush({ ...rawPayment, state: 'Paid', checkoutUrl: null });
+
+      expect(payment?.checkoutUrl).toBeNull();
+      expect(payment?.state).toBe('Paid');
+    });
+
+    it('propaga los errores del backend (p. ej. 409 SALE_NOT_PAYABLE)', () => {
+      let status: number | undefined;
+      service
+        .createPayment('s1')
+        .subscribe({ error: (e: { status: number }) => (status = e.status) });
+
+      http
+        .expectOne('http://api.test/payments')
+        .flush({ code: 'SALE_NOT_PAYABLE' }, { status: 409, statusText: 'Conflict' });
+
+      expect(status).toBe(409);
+    });
   });
 
-  it('crea el pago enviando solo la venta (el monto lo resuelve el backend)', () => {
-    const backUrls = service.buildBackUrls();
-    let initPoint: string | undefined;
+  describe('redirectToCheckout', () => {
+    it('redirige solo a dominios https de Mercado Pago', () => {
+      service.redirectToCheckout(CHECKOUT);
+      expect(navigate).toHaveBeenCalledTimes(1);
 
-    service.createPayment({ saleId: 's1', backUrls }).subscribe((r) => (initPoint = r.initPoint));
+      expect(() => service.redirectToCheckout('https://evil.example.com/pay')).toThrow();
+      expect(() => service.redirectToCheckout('https://mercadopago.com.evil.com/pay')).toThrow();
+      expect(() => service.redirectToCheckout('http://www.mercadopago.com/pay')).toThrow();
+      expect(() => service.redirectToCheckout('javascript:alert(1)')).toThrow();
+      expect(() => service.redirectToCheckout('no es una url')).toThrow();
+      expect(navigate).toHaveBeenCalledTimes(1);
+    });
 
-    const req = http.expectOne('http://api.test/payments');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ saleId: 's1', backUrls });
-    req.flush({ initPoint: 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=1' });
+    it('acepta subdominios de Mercado Pago (p. ej. el sandbox)', () => {
+      service.redirectToCheckout('https://sandbox.mercadopago.com.ar/checkout/v1/redirect');
 
-    expect(initPoint).toBe('https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=1');
+      expect(navigate).toHaveBeenCalledTimes(1);
+    });
+
+    it('sin URL de pago lanza un error claro', () => {
+      expect(() => service.redirectToCheckout(null)).toThrow(
+        'El servidor no devolvió la URL de pago.',
+      );
+      expect(() => service.redirectToCheckout('')).toThrow();
+      expect(navigate).not.toHaveBeenCalled();
+    });
   });
 
-  it('acepta init_point en snake_case', () => {
-    let initPoint: string | undefined;
-    service
-      .createPayment({ saleId: 's1', backUrls: service.buildBackUrls() })
-      .subscribe((r) => (initPoint = r.initPoint));
+  describe('getPaymentBySale', () => {
+    it('devuelve el último intento normalizando el monto', () => {
+      let payment: Payment | null | undefined;
+      service.getPaymentBySale('s1').subscribe((p) => (payment = p));
 
-    http.expectOne('http://api.test/payments').flush({ init_point: 'https://mercadopago.com/x' });
+      http
+        .expectOne('http://api.test/payments/sale/s1')
+        .flush({ ...rawPayment, state: 'Paid', checkoutUrl: null });
 
-    expect(initPoint).toBe('https://mercadopago.com/x');
-  });
+      expect(payment).toMatchObject({ id: 'pay1', saleId: 's1', state: 'Paid', amount: 1500 });
+    });
 
-  it('falla si el backend no devuelve la URL de pago', () => {
-    let error: unknown;
-    service
-      .createPayment({ saleId: 's1', backUrls: service.buildBackUrls() })
-      .subscribe({ error: (e: unknown) => (error = e) });
+    it('devuelve null si todavía no hay pago (404)', () => {
+      let payment: Payment | null | undefined = undefined;
+      service.getPaymentBySale('s1').subscribe((p) => (payment = p));
 
-    http.expectOne('http://api.test/payments').flush({});
+      http
+        .expectOne('http://api.test/payments/sale/s1')
+        .flush({ message: 'not found' }, { status: 404, statusText: 'Not Found' });
 
-    expect(error).toBeInstanceOf(Error);
-  });
+      expect(payment).toBeNull();
+    });
 
-  it('redirige solo a dominios https de Mercado Pago', () => {
-    service.redirectToCheckout('https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=1');
-    expect(navigate).toHaveBeenCalledTimes(1);
+    it('propaga otros errores', () => {
+      let error: unknown;
+      service.getPaymentBySale('s1').subscribe({ error: (e: unknown) => (error = e) });
 
-    expect(() => service.redirectToCheckout('https://evil.example.com/pay')).toThrow();
-    expect(() => service.redirectToCheckout('https://mercadopago.com.evil.com/pay')).toThrow();
-    expect(() => service.redirectToCheckout('http://www.mercadopago.com/pay')).toThrow();
-    expect(() => service.redirectToCheckout('javascript:alert(1)')).toThrow();
-    expect(() => service.redirectToCheckout('no es una url')).toThrow();
-    expect(navigate).toHaveBeenCalledTimes(1);
-  });
+      http
+        .expectOne('http://api.test/payments/sale/s1')
+        .flush({}, { status: 500, statusText: 'Server Error' });
 
-  it('getPaymentBySale devuelve el pago normalizando el monto', () => {
-    let payment: unknown;
-    service.getPaymentBySale('s1').subscribe((p) => (payment = p));
-
-    http
-      .expectOne('http://api.test/payments/sale/s1')
-      .flush({ id: 'pay1', saleId: 's1', paymentState: 'Paid', amount: '1500.00' });
-
-    expect(payment).toEqual({ id: 'pay1', saleId: 's1', paymentState: 'Paid', amount: 1500 });
-  });
-
-  it('getPaymentBySale devuelve null si todavía no hay pago (404)', () => {
-    let payment: unknown = 'sin respuesta';
-    service.getPaymentBySale('s1').subscribe((p) => (payment = p));
-
-    http
-      .expectOne('http://api.test/payments/sale/s1')
-      .flush({ message: 'not found' }, { status: 404, statusText: 'Not Found' });
-
-    expect(payment).toBeNull();
-  });
-
-  it('getPaymentBySale propaga otros errores', () => {
-    let error: unknown;
-    service.getPaymentBySale('s1').subscribe({ error: (e: unknown) => (error = e) });
-
-    http
-      .expectOne('http://api.test/payments/sale/s1')
-      .flush({}, { status: 500, statusText: 'Server Error' });
-
-    expect(error).toBeTruthy();
+      expect(error).toBeTruthy();
+    });
   });
 
   it('recuerda y limpia la venta pendiente', () => {

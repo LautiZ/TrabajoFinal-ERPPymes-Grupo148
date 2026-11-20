@@ -1,22 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import type { Mock } from 'vitest';
-import { NotificationService } from '../../../../shared/services/notification.service';
 import { StockStatusFilter } from '../../models/product.model';
-import {
-  INVENTORY_STORAGE,
-  LowStockThresholdService,
-} from '../../services/low-stock-threshold.service';
 import { StockSummaryService } from '../../services/stock-summary.service';
 import { StockSummary } from './stock-summary';
 
 describe('StockSummary', () => {
   let fixture: ComponentFixture<StockSummary>;
   let summaryService: { load: Mock };
-  let notify: { error: Mock };
-  let threshold: LowStockThresholdService;
   let filterChange: Mock;
-  let thresholdChange: Mock;
 
   const text = (): string => (fixture.nativeElement as HTMLElement).textContent ?? '';
   const el = (selector: string): HTMLElement =>
@@ -30,22 +22,14 @@ describe('StockSummary', () => {
 
   beforeEach(async () => {
     summaryService = { load: vi.fn(() => of({ total: 20, ok: 14, low: 4, out: 2 })) };
-    notify = { error: vi.fn() };
     filterChange = vi.fn();
-    thresholdChange = vi.fn();
 
     await TestBed.configureTestingModule({
       imports: [StockSummary],
-      providers: [
-        { provide: INVENTORY_STORAGE, useValue: null },
-        { provide: StockSummaryService, useValue: summaryService },
-        { provide: NotificationService, useValue: notify },
-      ],
+      providers: [{ provide: StockSummaryService, useValue: summaryService }],
     }).compileComponents();
-    threshold = TestBed.inject(LowStockThresholdService);
     fixture = TestBed.createComponent(StockSummary);
     fixture.componentInstance.filterChange.subscribe(filterChange);
-    fixture.componentInstance.thresholdChange.subscribe(thresholdChange);
     await settle();
   });
 
@@ -56,17 +40,19 @@ describe('StockSummary', () => {
     expect(el('.tile__value--out').textContent).toContain('2');
   });
 
-  it('consulta el resumen con el umbral actual', () => {
-    expect(summaryService.load).toHaveBeenCalledWith(10);
+  it('consulta el resumen al backend, que usa el mínimo de cada producto', () => {
+    expect(summaryService.load).toHaveBeenCalledWith();
+  });
+
+  it('no ofrece un umbral global: el mínimo se define en cada producto', () => {
+    expect(el('#low-stock-threshold')).toBeNull();
   });
 
   it('vuelve a consultar cuando cambia el token de refresco', async () => {
-    threshold.set(30);
     fixture.componentRef.setInput('refreshToken', 1);
     await settle();
 
     expect(summaryService.load).toHaveBeenCalledTimes(2);
-    expect(summaryService.load).toHaveBeenLastCalledWith(30);
   });
 
   it('muestra guiones mientras no hay datos y avisa si falla', async () => {
@@ -74,11 +60,7 @@ describe('StockSummary', () => {
     summaryService = { load: vi.fn(() => throwError(() => new Error('down'))) };
     await TestBed.configureTestingModule({
       imports: [StockSummary],
-      providers: [
-        { provide: INVENTORY_STORAGE, useValue: null },
-        { provide: StockSummaryService, useValue: summaryService },
-        { provide: NotificationService, useValue: notify },
-      ],
+      providers: [{ provide: StockSummaryService, useValue: summaryService }],
     }).compileComponents();
     fixture = TestBed.createComponent(StockSummary);
     await settle();
@@ -110,43 +92,6 @@ describe('StockSummary', () => {
       buttons()[0].click();
 
       expect(filterChange).toHaveBeenCalledWith('');
-    });
-  });
-
-  describe('umbral configurable', () => {
-    const input = (): HTMLInputElement => el('#low-stock-threshold') as HTMLInputElement;
-
-    function type(value: string): void {
-      input().value = value;
-      input().dispatchEvent(new Event('change'));
-    }
-
-    it('muestra el umbral actual', () => {
-      expect(input().value).toBe('10');
-    });
-
-    it('al cambiarlo lo guarda y avisa para refrescar', () => {
-      type('25');
-
-      expect(threshold.value()).toBe(25);
-      expect(thresholdChange).toHaveBeenCalledWith(25);
-      expect(notify.error).not.toHaveBeenCalled();
-    });
-
-    it('rechaza valores inválidos, los revierte y avisa', () => {
-      type('-3');
-
-      expect(threshold.value()).toBe(10);
-      expect(input().value).toBe('10');
-      expect(thresholdChange).not.toHaveBeenCalled();
-      expect(notify.error).toHaveBeenCalledTimes(1);
-    });
-
-    it('rechaza el campo vacío', () => {
-      type('');
-
-      expect(threshold.value()).toBe(10);
-      expect(notify.error).toHaveBeenCalledTimes(1);
     });
   });
 });

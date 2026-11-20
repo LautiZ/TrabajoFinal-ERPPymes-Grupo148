@@ -45,7 +45,6 @@ import {
   UNIT_SYMBOLS,
 } from '../../models/product.model';
 import { InventoryService } from '../../services/inventory.service';
-import { LowStockThresholdService } from '../../services/low-stock-threshold.service';
 import {
   DEFAULT_LIST_STATE,
   ListState,
@@ -89,7 +88,6 @@ const SEARCH_DEBOUNCE_MS = 300;
 })
 export class InventoryList {
   private readonly inventory = inject(InventoryService);
-  private readonly thresholdService = inject(LowStockThresholdService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -168,7 +166,7 @@ export class InventoryList {
           this.error.set(null);
         }),
         switchMap(([state]) =>
-          this.inventory.list(toListQuery(state, this.lowStockThreshold())).pipe(
+          this.inventory.list(toListQuery(state)).pipe(
             catchError(() => {
               this.error.set('No se pudo cargar el inventario.');
               return of(null);
@@ -203,13 +201,8 @@ export class InventoryList {
     return UNIT_SYMBOLS[unit];
   }
 
-  /** Umbral de "stock bajo" con el que se consulta al backend. */
-  protected lowStockThreshold(): number {
-    return this.thresholdService.value();
-  }
-
   protected statusOf(product: Product): StockStatus {
-    return getStockStatus(product.stock, this.thresholdService.value());
+    return getStockStatus(product.stock, product.lowStockThreshold);
   }
 
   protected reload(): void {

@@ -3,13 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of, throwError } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
-import {
-  CreatePaymentRequest,
-  CreatePaymentResponse,
-  Payment,
-  PaymentBackUrls,
-  PaymentState,
-} from '../models/payment.model';
+import { CreatePaymentRequest, Payment, PaymentState } from '../models/payment.model';
 import { CART_STORAGE } from './cart.service';
 
 export const PENDING_SALE_KEY = 'erp.sales.pending-sale.v1';
@@ -33,17 +27,25 @@ function isAllowedRedirectHost(hostname: string): boolean {
   return ALLOWED_REDIRECT_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
 }
 
-interface ApiCreatePayment {
-  initPoint?: string;
-  init_point?: string;
-  paymentId?: string;
-}
-
+/** Forma del Payments MS: el monto (decimal de PostgreSQL) puede llegar como string. */
 interface ApiPayment {
   id: string;
   saleId: string;
-  paymentState: PaymentState;
   amount: number | string;
+  state: PaymentState;
+  checkoutUrl?: string | null;
+  createdAt?: string;
+}
+
+function toPayment(raw: ApiPayment): Payment {
+  return {
+    id: raw.id,
+    saleId: raw.saleId,
+    amount: Number(raw.amount),
+    state: raw.state,
+    checkoutUrl: raw.checkoutUrl ?? null,
+    createdAt: raw.createdAt ?? '',
+  };
 }
 
 /**
@@ -58,32 +60,19 @@ export class PaymentsService {
   private readonly document = inject(DOCUMENT);
   private readonly storage = inject(CART_STORAGE);
 
-  /** URLs a las que Mercado Pago devuelve al usuario, relativas al origen de la app. */
-  buildBackUrls(): PaymentBackUrls {
-    const origin = this.document.location.origin;
-    return {
-      success: `${origin}/sales/payment/success`,
-      failure: `${origin}/sales/payment/failure`,
-      pending: `${origin}/sales/payment/pending`,
-    };
+  /**
+   * Genera el pago de una venta (`POST /payments`). Es idempotente del lado del servidor: si ya
+   * hay un pago pendiente para la venta, devuelve ese mismo checkout.
+   */
+  createPayment(saleId: string): Observable<Payment> {
+    const request: CreatePaymentRequest = { saleId };
+    return this.api.post<ApiPayment>('payments', request).pipe(map(toPayment));
   }
 
-  createPayment(request: CreatePaymentRequest): Observable<CreatePaymentResponse> {
-    return this.api.post<ApiCreatePayment>('payments', request).pipe(
-      map((raw) => {
-        const initPoint = raw.initPoint ?? raw.init_point;
-        if (!initPoint) {
-          throw new Error('El servidor no devolvió la URL de pago.');
-        }
-        return { initPoint, paymentId: raw.paymentId };
-      }),
-    );
-  }
-
-  /** Pago asociado a una venta; null si todavía no existe (404). */
+  /** Último intento de pago de una venta; `null` si todavía no existe (404). */
   getPaymentBySale(saleId: string): Observable<Payment | null> {
     return this.api.get<ApiPayment>(`payments/sale/${encodeURIComponent(saleId)}`).pipe(
-      map((raw) => ({ ...raw, amount: Number(raw.amount) })),
+      map(toPayment),
       catchError((error: unknown) =>
         error instanceof HttpErrorResponse && error.status === 404
           ? of(null)
@@ -92,11 +81,14 @@ export class PaymentsService {
     );
   }
 
-  /** Redirige al checkout de Mercado Pago. Lanza si la URL no es un dominio permitido. */
-  redirectToCheckout(initPoint: string): void {
+  /** Redirige al checkout de Mercado Pago. Lanza si la URL falta o no es un dominio permitido. */
+  redirectToCheckout(checkoutUrl: string | null): void {
+    if (!checkoutUrl) {
+      throw new Error('El servidor no devolvió la URL de pago.');
+    }
     let url: URL;
     try {
-      url = new URL(initPoint);
+      url = new URL(checkoutUrl);
     } catch {
       throw new Error('La URL de pago recibida no es válida.');
     }

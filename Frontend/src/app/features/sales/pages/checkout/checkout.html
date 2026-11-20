@@ -20,37 +20,10 @@
         </mat-radio-group>
       </fieldset>
 
-      <fieldset>
-        <legend>Datos del cliente</legend>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Nombre</mat-label>
-          <input matInput formControlName="customerName" autocomplete="name" required />
-          @if (form.controls.customerName.hasError('required')) {
-          <mat-error>El nombre es obligatorio.</mat-error>
-          } @else if (form.controls.customerName.hasError('maxlength')) {
-          <mat-error>Máximo 100 caracteres.</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Email</mat-label>
-          <input
-            matInput
-            type="email"
-            formControlName="customerEmail"
-            autocomplete="email"
-            required
-          />
-          @if (form.controls.customerEmail.hasError('required')) {
-          <mat-error>El email es obligatorio.</mat-error>
-          } @else if (form.controls.customerEmail.hasError('email')) {
-          <mat-error>Ingresá un email válido.</mat-error>
-          } @else if (form.controls.customerEmail.hasError('maxlength')) {
-          <mat-error>Máximo 120 caracteres.</mat-error>
-          }
-        </mat-form-field>
-      </fieldset>
+      <p class="checkout__note">
+        Al confirmar se registra la venta y te llevamos al checkout de Mercado Pago. Cuando
+        termines, volvés acá y se muestra el estado real del pago.
+      </p>
 
       <div class="checkout__actions">
         <a mat-button routerLink="/sales">Volver al carrito</a>

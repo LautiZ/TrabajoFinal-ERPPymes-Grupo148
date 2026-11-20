@@ -40,7 +40,6 @@ describe('safeReturnUrl', () => {
   it('rechaza las pantallas de autenticación para no entrar en un bucle', () => {
     expect(safeReturnUrl('/auth/login')).toBe('/dashboard');
     expect(safeReturnUrl('/auth/login?returnUrl=%2Fx')).toBe('/dashboard');
-    expect(safeReturnUrl('/auth/register')).toBe('/dashboard');
     expect(safeReturnUrl('/auth')).toBe('/dashboard');
   });
 

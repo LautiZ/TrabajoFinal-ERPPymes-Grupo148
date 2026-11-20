@@ -2,26 +2,25 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  computed,
+  OnInit,
   inject,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
 import { catchError, forkJoin, of } from 'rxjs';
 import { EmptyState } from '../../../../shared/components/empty-state/empty-state';
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { StatCard } from '../../../../shared/components/stat-card/stat-card';
 import { AnalyticsService } from '../../../analytics/services/analytics.service';
-import { InventoryService } from '../../../inventory/services/inventory.service';
-import { LowStockThresholdService } from '../../../inventory/services/low-stock-threshold.service';
 
 interface Indicator {
+  key: 'valuation' | 'lowStock' | 'monthSales' | 'todaySales';
   label: string;
-  value: string;
   icon: string;
   hint: string;
+  value: string;
   tone?: 'default' | 'danger';
 }
 
@@ -31,6 +30,13 @@ const arsFormatter = new Intl.NumberFormat('es-AR', {
   maximumFractionDigits: 0,
 });
 
+function toYmd(date: Date): string {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 @Component({
   imports: [RouterLink, MatButtonModule, PageHeader, StatCard, EmptyState],
   selector: 'app-dashboard',
@@ -38,102 +44,99 @@ const arsFormatter = new Intl.NumberFormat('es-AR', {
   templateUrl: './dashboard.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Dashboard {
+export class Dashboard implements OnInit {
   private readonly analytics = inject(AnalyticsService);
-  private readonly inventory = inject(InventoryService);
-  private readonly thresholdService = inject(LowStockThresholdService);
   private readonly destroyRef = inject(DestroyRef);
 
-  private readonly inventoryValue = signal<string>('—');
-  private readonly inventoryHint = signal<string>('Calculando inventario...');
-  private readonly stockAlerts = signal<string>('—');
-  private readonly stockAlertsHint = signal<string>('Productos bajo el mínimo');
-  private readonly monthSales = signal<string>('—');
-  private readonly monthSalesHint = signal<string>('Ingresos del mes actual');
-  private readonly todaySales = signal<string>('—');
-  private readonly todaySalesHint = signal<string>('Ingresos de hoy');
-
-  protected readonly indicators = computed<readonly Indicator[]>(() => [
+  protected readonly indicators = signal<readonly Indicator[]>([
     {
+      key: 'valuation',
       label: 'Valor del inventario',
-      value: this.inventoryValue(),
       icon: 'account_balance_wallet',
-      hint: this.inventoryHint(),
+      hint: 'Valorización actual del stock',
+      value: '—',
     },
     {
+      key: 'lowStock',
       label: 'Alertas de stock',
-      value: this.stockAlerts(),
       icon: 'warning',
-      hint: this.stockAlertsHint(),
+      hint: 'Productos bajo el mínimo',
+      value: '—',
       tone: 'danger',
     },
     {
+      key: 'monthSales',
       label: 'Ventas del mes',
-      value: this.monthSales(),
       icon: 'payments',
-      hint: this.monthSalesHint(),
+      hint: 'Ingresos acumulados del mes',
+      value: '—',
     },
     {
+      key: 'todaySales',
       label: 'Ventas de hoy',
-      value: this.todaySales(),
       icon: 'receipt_long',
-      hint: this.todaySalesHint(),
+      hint: 'Ingresos del día de hoy',
+      value: '—',
     },
   ]);
 
-  constructor() {
+  ngOnInit(): void {
     const now = new Date();
-    const todayStr = this.formatYmd(now);
-    const firstOfMonthStr = this.formatYmd(new Date(now.getFullYear(), now.getMonth(), 1));
-    const threshold = this.thresholdService.value();
+    const today = toYmd(now);
+    const monthStart = toYmd(new Date(now.getFullYear(), now.getMonth(), 1));
 
     forkJoin({
-      valuation: this.analytics.getInventoryValue().pipe(catchError(() => of(null))),
-      productsPage: this.inventory
-        .list({ page: 1, limit: 100 })
-        .pipe(catchError(() => of(null))),
-      month: this.analytics
-        .getSummary(firstOfMonthStr, todayStr)
-        .pipe(catchError(() => of(null))),
-      today: this.analytics
-        .getSummary(todayStr, todayStr)
-        .pipe(catchError(() => of(null))),
+      inventory: this.analytics.getInventoryValue().pipe(catchError(() => of(null))),
+      monthSummary: this.analytics.getSummary(monthStart, today).pipe(catchError(() => of(null))),
+      todaySummary: this.analytics.getSummary(today, today).pipe(catchError(() => of(null))),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ valuation, productsPage, month, today }) => {
-        if (valuation) {
-          this.inventoryValue.set(arsFormatter.format(valuation.totalValuation));
-          this.inventoryHint.set(`${valuation.totalUnits} unidades en catálogo`);
-        } else if (productsPage) {
-          const totalVal = productsPage.data.reduce((acc, p) => acc + p.price * p.stock, 0);
-          this.inventoryValue.set(arsFormatter.format(totalVal));
-          this.inventoryHint.set(`${productsPage.meta.total} productos activos`);
-        }
-
-        if (productsPage) {
-          const alertsCount = productsPage.data.filter((p) => p.stock <= threshold).length;
-          this.stockAlerts.set(String(alertsCount));
-          this.stockAlertsHint.set(`Productos con stock ≤ ${threshold}`);
-        } else if (valuation) {
-          this.stockAlerts.set(String(valuation.lowStockCount));
-        }
-
-        if (month) {
-          this.monthSales.set(arsFormatter.format(month.current.revenue));
-          this.monthSalesHint.set(`${month.current.salesCount} ventas registradas`);
-        }
-
-        if (today) {
-          this.todaySales.set(arsFormatter.format(today.current.revenue));
-          this.todaySalesHint.set(`${today.current.salesCount} ventas hoy`);
-        }
+      .subscribe(({ inventory, monthSummary, todaySummary }) => {
+        this.indicators.update((list) =>
+          list.map((indicator) => {
+            switch (indicator.key) {
+              case 'valuation':
+                return {
+                  ...indicator,
+                  value:
+                    inventory != null ? arsFormatter.format(Number(inventory.totalValuation)) : '—',
+                  hint:
+                    inventory != null
+                      ? `${Number(inventory.totalUnits)} unidades en stock`
+                      : indicator.hint,
+                };
+              case 'lowStock':
+                return {
+                  ...indicator,
+                  value: inventory != null ? String(Number(inventory.lowStockCount)) : '—',
+                };
+              case 'monthSales':
+                return {
+                  ...indicator,
+                  value:
+                    monthSummary != null
+                      ? arsFormatter.format(Number(monthSummary.current.revenue))
+                      : '—',
+                  hint:
+                    monthSummary != null
+                      ? `${Number(monthSummary.current.salesCount)} ventas registradas`
+                      : indicator.hint,
+                };
+              case 'todaySales':
+                return {
+                  ...indicator,
+                  value:
+                    todaySummary != null
+                      ? arsFormatter.format(Number(todaySummary.current.revenue))
+                      : '—',
+                  hint:
+                    todaySummary != null
+                      ? `${Number(todaySummary.current.salesCount)} ventas hoy`
+                      : indicator.hint,
+                };
+            }
+          }),
+        );
       });
-  }
-
-  private formatYmd(date: Date): string {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
   }
 }

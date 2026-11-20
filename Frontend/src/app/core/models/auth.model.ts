@@ -25,12 +25,28 @@ export interface LoginRequest {
   password: string;
 }
 
-/** El registro público es solo de arranque: crea al `Owner` mientras no exista uno (RN-16.4). */
-export interface RegisterRequest {
+/** Usuario tal como lo devuelve el login (`UserResponseDto` del Gateway). */
+export interface LoginUser {
+  id: string;
+  email: string;
+  name: string;
+  surname: string | null;
+  role: UserRole;
+}
+
+/** Cuerpo de `POST /users` (alta de usuario por un `Owner` o `Admin`). */
+export interface CreateUserRequest {
   email: string;
   password: string;
   name: string;
   surname?: string;
+  role: UserRole;
+}
+
+/** Usuario creado tal como lo devuelve `POST /users`. */
+export interface CreatedUser extends LoginUser {
+  active: boolean;
+  createdAt: string;
 }
 
 /** Claims del JWT que usa el cliente. Solo sirven para la UX: el Gateway valida la firma. */

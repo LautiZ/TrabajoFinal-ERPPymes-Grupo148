@@ -14,6 +14,7 @@ const rawProduct = {
   sku: 'YER-001',
   price: '4500.00',
   stock: '25.500',
+  lowStockThreshold: '5.000',
   unit: 'Kg',
   categoryId: 'c1',
   category: { id: 'c1', name: 'Almacén' },
@@ -50,7 +51,6 @@ describe('InventoryService', () => {
           sortOrder: 'desc',
           categoryId: 'c1',
           stockStatus: 'low',
-          lowStockThreshold: 10,
         })
         .subscribe();
 
@@ -63,7 +63,7 @@ describe('InventoryService', () => {
       expect(req.request.params.get('sortOrder')).toBe('desc');
       expect(req.request.params.get('categoryId')).toBe('c1');
       expect(req.request.params.get('stockStatus')).toBe('low');
-      expect(req.request.params.get('lowStockThreshold')).toBe('10');
+      expect(req.request.params.has('lowStockThreshold')).toBe(false);
       req.flush({ data: [], meta: { total: 0, page: 2, limit: 25, totalPages: 0 } });
     });
 
@@ -93,6 +93,7 @@ describe('InventoryService', () => {
         sku: 'YER-001',
         price: 4500,
         stock: 25.5,
+        lowStockThreshold: 5,
         unit: 'Kg',
         categoryId: 'c1',
         category: { id: 'c1', name: 'Almacén' },

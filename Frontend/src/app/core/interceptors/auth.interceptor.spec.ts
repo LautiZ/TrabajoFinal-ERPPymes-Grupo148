@@ -55,16 +55,12 @@ describe('authInterceptor', () => {
     req.flush([]);
   });
 
-  it('no envía el token en login ni registro', () => {
+  it('no envía el token en el login', () => {
     setup(createJwt());
 
     http.post(`${BASE}/auth/login`, {}).subscribe();
-    http.post(`${BASE}/auth/register`, {}).subscribe();
 
     expect(controller.expectOne(`${BASE}/auth/login`).request.headers.has('Authorization')).toBe(
-      false,
-    );
-    expect(controller.expectOne(`${BASE}/auth/register`).request.headers.has('Authorization')).toBe(
       false,
     );
   });

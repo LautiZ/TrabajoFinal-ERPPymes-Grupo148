@@ -3,7 +3,7 @@ import { provideRouter } from '@angular/router';
 import { AccessDenied } from './access-denied';
 
 describe('AccessDenied', () => {
-  it('informa el acceso denegado y ofrece volver al panel', async () => {
+  it('informa el acceso denegado y ofrece volver al inicio', async () => {
     await TestBed.configureTestingModule({
       imports: [AccessDenied],
       providers: [provideRouter([])],

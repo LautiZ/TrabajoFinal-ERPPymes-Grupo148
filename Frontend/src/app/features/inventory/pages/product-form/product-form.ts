@@ -84,6 +84,11 @@ export class ProductForm {
       integerWhenUnit,
       maxDecimals(3),
     ]),
+    lowStockThreshold: this.fb.control<number | null>(0, [
+      Validators.required,
+      Validators.min(0),
+      maxDecimals(3),
+    ]),
     categoryId: this.fb.control('', Validators.required),
     active: this.fb.control(true),
   });
@@ -125,6 +130,7 @@ export class ProductForm {
               price: product.price,
               unit: product.unit,
               stock: product.stock,
+              lowStockThreshold: product.lowStockThreshold,
               categoryId: product.categoryId,
               active: product.active,
             });
@@ -169,6 +175,7 @@ export class ProductForm {
       price: Number(value.price),
       categoryId: value.categoryId,
       active: value.active,
+      lowStockThreshold: Number(value.lowStockThreshold),
     };
 
     if (this.productId) {

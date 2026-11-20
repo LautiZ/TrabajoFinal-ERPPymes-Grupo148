@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, UrlTree } from '@angular/router';
-import { FORBIDDEN_PATH, HOME_PATH, LOGIN_PATH } from '../auth-paths';
+import { EMPLOYEE_HOME_PATH, FORBIDDEN_PATH, HOME_PATH, LOGIN_PATH } from '../auth-paths';
 import { UserRole } from '../models/auth.model';
 import { AuthService } from '../services/auth.service';
 
@@ -45,6 +45,20 @@ export const roleGuard: CanActivateFn = (route, state) => {
   return allowed.length === 0 || auth.hasRole(...allowed)
     ? true
     : router.createUrlTree([FORBIDDEN_PATH]);
+};
+
+/**
+ * Panel principal (`/dashboard`): sus datos salen de la analítica, que es solo para `Owner` y
+ * `Admin`. Un `Employee` que llega acá (login, link guardado, escribir la URL) va directo a su
+ * pantalla de trabajo en vez de ver un panel que no puede cargar.
+ */
+export const dashboardGuard: CanActivateFn = (_route, state) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (!auth.isSessionActive()) {
+    return toLogin(router, state.url, auth.lastEndReason() === 'expired');
+  }
+  return auth.hasRole('Owner', 'Admin') ? true : router.createUrlTree([EMPLOYEE_HOME_PATH]);
 };
 
 /** Evita que un usuario con sesión vuelva a las pantallas de login o registro. */

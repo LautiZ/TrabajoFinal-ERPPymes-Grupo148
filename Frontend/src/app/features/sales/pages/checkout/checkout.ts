@@ -1,22 +1,13 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import {
-  AbstractControl,
-  NonNullableFormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  ValidatorFn,
-  Validators,
-} from '@angular/forms';
+import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
-import { Observable, of, switchMap, tap, throwError } from 'rxjs';
+import { Observable, map, of, switchMap, tap, throwError } from 'rxjs';
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import {
@@ -32,11 +23,8 @@ import { CartService, lineTotal } from '../../services/cart.service';
 import { PaymentsService } from '../../services/payments.service';
 import { SalesService } from '../../services/sales.service';
 import { StockCheckService } from '../../services/stock-check.service';
+import { isSaleNotPayable, paymentErrorMessage } from '../../utils/payment-errors';
 import { parseStockConflicts } from '../../utils/stock-conflict';
-
-/** Rechaza valores vacíos o con solo espacios (`Validators.required` los dejaría pasar). */
-const notBlank: ValidatorFn = (control: AbstractControl): ValidationErrors | null =>
-  typeof control.value === 'string' && control.value.trim().length > 0 ? null : { required: true };
 
 /** Error interno: la verificación previa detectó ítems sin stock suficiente. */
 class StockConflictError extends Error {
@@ -52,8 +40,6 @@ class StockConflictError extends Error {
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
     MatRadioModule,
     MatProgressSpinnerModule,
     PageHeader,
@@ -80,20 +66,11 @@ export class Checkout {
   /** Venta ya creada en este checkout: un reintento de pago no debe duplicarla. */
   private pendingSale: Sale | null = null;
 
+  /** Solo el método de pago: el backend arma el cobro a partir de la venta (no pide datos del cliente). */
   protected readonly form = this.fb.group({
     paymentMethod: this.fb.control<PaymentMethod>('mercadopago', Validators.required),
-    customerName: this.fb.control('', [notBlank, Validators.maxLength(100)]),
-    customerEmail: this.fb.control('', [
-      Validators.required,
-      Validators.email,
-      Validators.maxLength(120),
-    ]),
   });
 
-  /**
-   * El botón queda habilitado aunque el formulario sea inválido: al tocarlo se marcan los
-   * campos con sus errores, así el usuario sabe qué falta (un botón apagado no lo explica).
-   */
   protected canSubmit(): boolean {
     return !this.cart.isEmpty() && !this.submitting();
   }
@@ -125,7 +102,7 @@ export class Checkout {
       )
       .subscribe({
         // Se mantiene `submitting` activo: la página se abandona al redirigir a Mercado Pago.
-        next: (initPoint) => this.redirect(initPoint),
+        next: (checkoutUrl) => this.redirect(checkoutUrl),
         error: (error: unknown) => this.handleError(error),
       });
   }
@@ -142,20 +119,13 @@ export class Checkout {
     );
   }
 
-  private startPayment(sale: Sale): Observable<string> {
-    const { customerName, customerEmail } = this.form.getRawValue();
-    return this.payments
-      .createPayment({
-        saleId: sale.id,
-        backUrls: this.payments.buildBackUrls(),
-        payer: { name: customerName.trim(), email: customerEmail.trim() },
-      })
-      .pipe(switchMap((response) => of(response.initPoint)));
+  private startPayment(sale: Sale): Observable<string | null> {
+    return this.payments.createPayment(sale.id).pipe(map((payment) => payment.checkoutUrl));
   }
 
-  private redirect(initPoint: string): void {
+  private redirect(checkoutUrl: string | null): void {
     try {
-      this.payments.redirectToCheckout(initPoint);
+      this.payments.redirectToCheckout(checkoutUrl);
     } catch (error) {
       this.handleError(error);
     }
@@ -171,11 +141,12 @@ export class Checkout {
 
     const conflicts = parseStockConflicts(error);
     if (conflicts === null) {
-      this.notify.error(
-        error instanceof Error && !('status' in error)
-          ? error.message
-          : 'No se pudo iniciar el pago. Intentá nuevamente.',
-      );
+      if (isSaleNotPayable(error)) {
+        // La venta quedó cancelada o ya está paga: reintentar no sirve, hay que armar otra.
+        this.pendingSale = null;
+        this.payments.clearPendingSale();
+      }
+      this.notify.error(paymentErrorMessage(error));
       return;
     }
 

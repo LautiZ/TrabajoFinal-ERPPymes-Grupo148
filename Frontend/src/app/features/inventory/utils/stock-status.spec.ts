@@ -1,29 +1,28 @@
-import { DEFAULT_LOW_STOCK_THRESHOLD, getStockStatus } from './stock-status';
+import { getStockStatus } from './stock-status';
 
 describe('getStockStatus', () => {
   it('sin stock cuando es 0 o negativo', () => {
-    expect(getStockStatus(0)).toBe('out');
+    expect(getStockStatus(0, 5)).toBe('out');
     expect(getStockStatus(-3)).toBe('out');
   });
 
-  it('stock bajo cuando está en el umbral o por debajo (y mayor a 0)', () => {
-    expect(getStockStatus(1)).toBe('low');
-    expect(getStockStatus(DEFAULT_LOW_STOCK_THRESHOLD)).toBe('low');
+  it('stock bajo cuando está en el mínimo del producto o por debajo (y mayor a 0)', () => {
+    expect(getStockStatus(1, 10)).toBe('low');
+    expect(getStockStatus(10, 10)).toBe('low');
   });
 
-  it('stock normal por encima del umbral', () => {
-    expect(getStockStatus(DEFAULT_LOW_STOCK_THRESHOLD + 1)).toBe('ok');
-    expect(getStockStatus(500)).toBe('ok');
+  it('stock normal por encima del mínimo', () => {
+    expect(getStockStatus(11, 10)).toBe('ok');
+    expect(getStockStatus(500, 10)).toBe('ok');
   });
 
-  it('respeta un umbral configurable', () => {
-    expect(getStockStatus(30, 30)).toBe('low');
-    expect(getStockStatus(31, 30)).toBe('ok');
-    expect(getStockStatus(5, 2)).toBe('ok');
+  it('un mínimo de 0 significa sin alerta', () => {
+    expect(getStockStatus(1, 0)).toBe('ok');
+    expect(getStockStatus(1)).toBe('ok');
   });
 
   it('admite cantidades decimales', () => {
-    expect(getStockStatus(0.5)).toBe('low');
-    expect(getStockStatus(10.001)).toBe('ok');
+    expect(getStockStatus(0.5, 0.5)).toBe('low');
+    expect(getStockStatus(10.001, 10)).toBe('ok');
   });
 });

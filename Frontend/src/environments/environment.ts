@@ -1,4 +1,5 @@
 export const environment = {
-  production: false,
-  apiUrl: 'http://localhost:3000/api',
+  production: true,
+  // Mismo origen: nginx reenvía /api al Gateway (Frontend/nginx/default.conf.template)
+  apiUrl: '/api',
 };
