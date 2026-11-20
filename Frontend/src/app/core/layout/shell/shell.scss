@@ -283,8 +283,22 @@
   font: var(--mat-sys-body-medium);
 }
 
-.topbar__new {
+.topbar__create-user {
+  white-space: nowrap;
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin-left: auto;
+}
+
+@media (max-width: 720px) {
+  .topbar__create-user {
+    min-width: 0;
+    padding-inline: 0.75rem;
+  }
 }
 
 .user {

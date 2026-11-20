@@ -103,10 +103,18 @@
   }
 </div>
 
-      <a mat-flat-button class="topbar__new" routerLink="/sales">
-        <mat-icon fontSet="material-symbols-outlined">add</mat-icon>
-        Nuevo
-      </a>
+      <div class="topbar__actions">
+        @if (canCreateUsers()) {
+        <a mat-stroked-button class="topbar__create-user" routerLink="/users/new">
+          <mat-icon fontSet="material-symbols-outlined">person_add</mat-icon>
+          Crear usuario
+        </a>
+        }
+        <a mat-flat-button class="topbar__new" routerLink="/sales">
+          <mat-icon fontSet="material-symbols-outlined">add</mat-icon>
+          Nuevo
+        </a>
+      </div>
 
       <div class="user">
         <span class="user__avatar" aria-hidden="true">{{ initials() }}</span>

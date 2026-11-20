@@ -34,6 +34,21 @@ export interface LoginUser {
   role: UserRole;
 }
 
+/** Cuerpo de `POST /users` (alta de usuario por un `Owner` o `Admin`). */
+export interface CreateUserRequest {
+  email: string;
+  password: string;
+  name: string;
+  surname?: string;
+  role: UserRole;
+}
+
+/** Usuario creado tal como lo devuelve `POST /users`. */
+export interface CreatedUser extends LoginUser {
+  active: boolean;
+  createdAt: string;
+}
+
 /** Claims del JWT que usa el cliente. Solo sirven para la UX: el Gateway valida la firma. */
 export interface JwtPayload {
   /** Id del usuario. */

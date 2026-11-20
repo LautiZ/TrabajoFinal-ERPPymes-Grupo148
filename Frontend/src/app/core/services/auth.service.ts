@@ -2,11 +2,14 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, finalize, map, of } from 'rxjs';
 import {
   AuthUser,
+  CreateUserRequest,
+  CreatedUser,
   LoginRequest,
   LoginUser,
   SessionEndReason,
   UserRole,
 } from '../models/auth.model';
+import { canCreateUsers, creatableRoles } from '../utils/user-creation';
 import { decodeJwt, expiresAtMs, isExpired, toAuthUser } from '../utils/jwt';
 import { ApiService } from './api.service';
 import { TokenStorageService } from './token-storage.service';
@@ -62,6 +65,10 @@ export class AuthService {
   readonly isAuthenticated = computed(() => this.session() !== null);
   readonly currentUser = computed(() => this.session()?.user ?? null);
   readonly role = computed<UserRole | null>(() => this.session()?.user.role ?? null);
+  /** `true` si el usuario actual puede dar de alta cuentas (Owner o Admin). */
+  readonly canCreateUsers = computed(() => canCreateUsers(this.role()));
+  /** Roles que el usuario actual puede asignar al crear una cuenta. */
+  readonly creatableRoles = computed(() => creatableRoles(this.role()));
   readonly roles = computed<readonly UserRole[]>(() => {
     const role = this.role();
     return role ? [role] : [];
@@ -82,15 +89,12 @@ export class AuthService {
       .pipe(map((response) => this.startSession(readToken(response), response.user)));
   }
 
-  /** Alta de un usuario por parte del Owner/Admin (`POST /users`). No inicia sesión. */
-  createUser(data: {
-    email: string;
-    password: string;
-    name: string;
-    surname?: string;
-    role: string;
-  }): Observable<void> {
-    return this.api.post<unknown>('users', data).pipe(map(() => undefined));
+  /**
+   * Alta de un usuario por parte del `Owner` o un `Admin` (`POST /users`). No inicia sesión.
+   * El servidor aplica la matriz de roles (403 si el rol no puede crear ese usuario).
+   */
+  createUser(data: CreateUserRequest): Observable<CreatedUser> {
+    return this.api.post<CreatedUser>('users', data);
   }
 
   /**

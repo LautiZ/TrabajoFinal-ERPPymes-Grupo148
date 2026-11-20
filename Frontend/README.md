@@ -12,6 +12,7 @@ src/app/
     ├── auth/              # Login y manejo de sesión (las cuentas las crea el Owner/Admin)
     ├── inventory/         # Catálogo de productos y movimientos de stock
     ├── sales/             # Punto de venta (POS), carrito y pagos
+    ├── users/             # Alta de usuarios: el Owner crea Admin/Employee; el Admin solo Employee (RN-16)
     ├── dashboard/         # Métricas financieras y analítica
     └── not-found/         # Página de error 404
 

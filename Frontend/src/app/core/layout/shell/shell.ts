@@ -28,6 +28,7 @@ import { LOGIN_PATH } from '../../auth-paths';
 import { Product } from '../../../features/inventory/models/product.model';
 import { InventoryService } from '../../../features/inventory/services/inventory.service';
 import { ROLE_LABELS, UserRole } from '../../models/auth.model';
+import { canCreateUsers } from '../../utils/user-creation';
 import { AuthService } from '../../services/auth.service';
 
 interface NavItem {
@@ -87,7 +88,12 @@ export class Shell {
   protected readonly currentQuery = signal('');
 
   private readonly allModules: readonly NavItem[] = [
-    { label: 'Panel Principal', icon: 'dashboard', path: '/dashboard' },
+    {
+      label: 'Panel Principal',
+      icon: 'dashboard',
+      path: '/dashboard',
+      roles: ['Owner', 'Admin'],
+    },
     { label: 'Inventario & Stock', icon: 'inventory_2', path: '/inventory' },
     { label: 'Ventas & Pagos', icon: 'point_of_sale', path: '/sales' },
     { label: 'Analítica', icon: 'insights', path: '/analytics', roles: ['Owner', 'Admin'] },
@@ -99,6 +105,8 @@ export class Shell {
   );
 
   protected readonly user = this.auth.currentUser;
+  /** El botón "Crear usuario" solo lo ven el Owner y los Admin. */
+  protected readonly canCreateUsers = computed(() => canCreateUsers(this.user()?.role));
   protected readonly roleLabel = computed(() => {
     const role = this.user()?.role;
     return role ? ROLE_LABELS[role] : '';

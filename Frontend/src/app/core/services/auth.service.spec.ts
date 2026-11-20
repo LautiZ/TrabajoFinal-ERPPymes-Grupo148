@@ -168,7 +168,7 @@ describe('AuthService', () => {
         password: 'Secreta123',
         name: 'Eva',
         surname: 'Gómez',
-        role: 'Employee',
+        role: 'Employee' as const,
       };
       let done = false;
 
