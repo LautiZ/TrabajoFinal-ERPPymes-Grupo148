@@ -91,6 +91,9 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "setupFiles": [
+      "<rootDir>/test/setup-unit-env.ts"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],

@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same branch cancels the previous, now outdated run
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    services:
+      # Throwaway database for the ERP integration tests: lives only inside the job,
+      # so it needs no password at all
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0 # same as Backend/Dockerfile
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.11.1 # same as Backend/Dockerfile
+          cache: pnpm
+          cache-dependency-path: Backend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      # Generated Prisma clients are not versioned; unit tests import them
+      - run: pnpm prisma:generate
+      - name: Build every app
+        run: for app in gateway auth erp payments; do pnpm exec nest build $app; done
+      - name: Unit tests
+        run: pnpm test
+      - name: Integration tests (real Postgres)
+        run: |
+          # test-database.ts reads the root .env for the admin connection
+          printf 'POSTGRES_USER=postgres\n' > ../.env
+          pnpm test:int:erp
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend/package.json # pnpm version from "packageManager"
+      - uses: actions/setup-node@v5
+        with:
+          package_json_file: Frontend/package.json # pnpm version from "packageManager"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.15.0 # same as Frontend/Dockerfile
+          cache: pnpm
+          cache-dependency-path: Frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test --watch=false
