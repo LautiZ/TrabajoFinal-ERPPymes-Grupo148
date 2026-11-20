@@ -18,7 +18,7 @@ import { HOME_PATH } from '../../../../core/auth-paths';
         title="No tenés permisos para ver esta pantalla"
         description="Tu rol no incluye este módulo. Si creés que es un error, pedile acceso al administrador."
       >
-        <a mat-flat-button [routerLink]="homePath">Volver al panel</a>
+        <a mat-flat-button [routerLink]="homePath">Volver al inicio</a>
       </app-empty-state>
     </section>
   `,

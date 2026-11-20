@@ -2,6 +2,21 @@
 
 Aplicación cliente construida en Angular 22 utilizando arquitectura modular por features y carga bajo demanda (lazy loading).
 
+## Permisos por rol (UX)
+
+Según las reglas de negocio (RN-16 a RN-16.3). Los guards del front solo evitan mostrar pantallas
+que no corresponden: la seguridad real la aplica el Gateway en cada request. La matriz completa
+está verificada en `src/app/core/permissions-matrix.spec.ts`.
+
+| Pantalla / acción                         | Owner           | Admin    | Employee         |
+| ----------------------------------------- | --------------- | -------- | ---------------- |
+| Panel principal (usa analítica)           | Sí              | Sí       | No (va a Ventas) |
+| Analítica                                 | Sí              | Sí       | No               |
+| Inventario (ver, alta, edición, stock)    | Sí              | Sí       | Sí               |
+| Ventas y cobro (POS, checkout, resultado) | Sí              | Sí       | Sí               |
+| Botón "Crear usuario"                     | Sí              | Sí       | No               |
+| Roles que se pueden asignar al crear      | Admin, Employee | Employee | —                |
+
 ## Estructura de carpetas
 
 ```text
