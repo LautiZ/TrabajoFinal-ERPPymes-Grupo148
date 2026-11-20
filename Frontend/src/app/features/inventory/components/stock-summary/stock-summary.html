@@ -34,20 +34,6 @@
       >{{ activeFilter() === 'out' ? 'Quitar filtro' : 'Ver en la tabla' }}</span
     >
   </button>
-
-  <div class="tile tile--threshold">
-    <label class="app-eyebrow" for="low-stock-threshold">Umbral de stock bajo</label>
-    <input
-      #thresholdInput
-      id="low-stock-threshold"
-      type="number"
-      min="0"
-      step="any"
-      [value]="threshold()"
-      (change)="applyThreshold(thresholdInput)"
-    />
-    <span class="tile__hint">Se considera bajo hasta este stock</span>
-  </div>
 </section>
 
 @if (error()) {

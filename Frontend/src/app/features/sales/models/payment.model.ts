@@ -1,28 +1,21 @@
-export type PaymentState = 'Pending' | 'Paid' | 'Rejected';
+export type PaymentState = 'Pending' | 'Paid' | 'Rejected' | 'Refunded';
 
 export type PaymentMethod = 'mercadopago';
 
-export interface PaymentBackUrls {
-  success: string;
-  failure: string;
-  pending: string;
-}
-
+/**
+ * Para generar el pago solo hace falta el id de la venta: el backend toma de ella el monto y los
+ * ítems (RN-13) y define las URLs de retorno de Mercado Pago. El Gateway rechaza cualquier otro campo.
+ */
 export interface CreatePaymentRequest {
   saleId: string;
-  payer?: { name?: string; email?: string };
-  backUrls: PaymentBackUrls;
-}
-
-export interface CreatePaymentResponse {
-  /** URL del checkout de Mercado Pago a la que se redirige al usuario. */
-  initPoint: string;
-  paymentId?: string;
 }
 
 export interface Payment {
   id: string;
   saleId: string;
-  paymentState: PaymentState;
   amount: number;
+  state: PaymentState;
+  /** Checkout de Mercado Pago al que se redirige al comprador; `null` cuando el intento ya se cerró. */
+  checkoutUrl: string | null;
+  createdAt: string;
 }

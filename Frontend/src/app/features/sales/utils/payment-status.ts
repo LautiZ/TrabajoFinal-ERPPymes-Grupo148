@@ -10,13 +10,17 @@ export type ResultStatus = 'approved' | 'rejected' | 'pending';
  */
 export function resolvePaymentStatus(sale: Sale | null, payment: Payment | null): ResultStatus {
   if (
-    payment?.paymentState === 'Paid' ||
+    payment?.state === 'Paid' ||
     sale?.currentState === 'Paid' ||
     sale?.currentState === 'Dispatched'
   ) {
     return 'approved';
   }
-  if (payment?.paymentState === 'Rejected' || sale?.currentState === 'Cancelled') {
+  if (
+    payment?.state === 'Rejected' ||
+    payment?.state === 'Refunded' ||
+    sale?.currentState === 'Cancelled'
+  ) {
     return 'rejected';
   }
   return 'pending';

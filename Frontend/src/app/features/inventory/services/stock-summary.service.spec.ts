@@ -1,70 +1,45 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
-import type { Mock } from 'vitest';
-import { PaginatedResponse } from '../../../core/models/pagination.model';
-import { Product, ProductListQuery } from '../models/product.model';
-import { InventoryService } from './inventory.service';
+import { API_URL } from '../../../core/services/api.service';
 import { StockCounts, StockSummaryService } from './stock-summary.service';
 
-function totalOnly(total: number): PaginatedResponse<Product> {
-  return { data: [], meta: { total, page: 1, limit: 1, totalPages: total } };
-}
-
 describe('StockSummaryService', () => {
-  let inventory: { list: Mock };
   let service: StockSummaryService;
+  let http: HttpTestingController;
 
   beforeEach(() => {
-    inventory = {
-      list: vi.fn((query: ProductListQuery) => {
-        if (query.stockStatus === 'low') return of(totalOnly(4));
-        if (query.stockStatus === 'out') return of(totalOnly(2));
-        return of(totalOnly(20));
-      }),
-    };
     TestBed.configureTestingModule({
-      providers: [{ provide: InventoryService, useValue: inventory }],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: API_URL, useValue: 'http://api.test' },
+      ],
     });
     service = TestBed.inject(StockSummaryService);
+    http = TestBed.inject(HttpTestingController);
   });
 
-  it('cuenta los productos en cada estado a partir del total de la paginación', () => {
+  afterEach(() => http.verify());
+
+  it('lee los conteos ya calculados por el backend (GET /products/stock-summary)', () => {
     let summary: StockCounts | undefined;
-    service.load(10).subscribe((s) => (summary = s));
+    service.load().subscribe((s) => (summary = s));
 
-    expect(summary).toEqual({ total: 20, low: 4, out: 2, ok: 14 });
+    const req = http.expectOne('http://api.test/products/stock-summary');
+    expect(req.request.method).toBe('GET');
+    req.flush({ total: 20, ok: 14, low: 4, out: 2 });
+
+    expect(summary).toEqual({ total: 20, ok: 14, low: 4, out: 2 });
   });
 
-  it('consulta de a una fila y con el umbral recibido', () => {
-    service.load(15).subscribe();
-
-    expect(inventory.list).toHaveBeenCalledTimes(3);
-    expect(inventory.list).toHaveBeenCalledWith({ page: 1, limit: 1 });
-    expect(inventory.list).toHaveBeenCalledWith({
-      stockStatus: 'low',
-      lowStockThreshold: 15,
-      page: 1,
-      limit: 1,
-    });
-    expect(inventory.list).toHaveBeenCalledWith({ stockStatus: 'out', page: 1, limit: 1 });
-  });
-
-  it('nunca informa un "stock normal" negativo', () => {
-    inventory.list.mockImplementation((query: ProductListQuery) =>
-      of(totalOnly(query.stockStatus ? 15 : 10)),
-    );
-    let summary: StockCounts | undefined;
-
-    service.load(10).subscribe((s) => (summary = s));
-
-    expect(summary?.ok).toBe(0);
-  });
-
-  it('propaga el error si falla alguna consulta', () => {
-    inventory.list.mockReturnValue(throwError(() => new Error('down')));
+  it('propaga el error si falla la consulta', () => {
     let failed = false;
+    service.load().subscribe({ error: () => (failed = true) });
 
-    service.load(10).subscribe({ error: () => (failed = true) });
+    http
+      .expectOne('http://api.test/products/stock-summary')
+      .flush({}, { status: 500, statusText: 'Server Error' });
 
     expect(failed).toBe(true);
   });

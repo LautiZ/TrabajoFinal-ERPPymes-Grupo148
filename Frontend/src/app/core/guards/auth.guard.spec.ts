@@ -12,7 +12,7 @@ import { AuthService } from '../services/auth.service';
 import { TOKEN_STORAGE, TOKEN_STORAGE_KEY } from '../services/token-storage.service';
 import { createJwt } from '../testing/jwt';
 import { createMemoryStorage } from '../testing/storage';
-import { authGuard, guestGuard, roleGuard } from './auth.guard';
+import { authGuard, dashboardGuard, guestGuard, roleGuard } from './auth.guard';
 
 describe('guards de rutas', () => {
   let router: Router;
@@ -111,6 +111,28 @@ describe('guards de rutas', () => {
       expect(run(roleGuard, '/analytics', ['Admin'])).toBe(
         '/auth/login?returnUrl=%2Fanalytics&reason=expired',
       );
+    });
+  });
+
+  describe('dashboardGuard', () => {
+    it('Owner y Admin entran al panel principal', () => {
+      setup(createJwt({ role: 'Owner' }));
+      expect(run(dashboardGuard, '/dashboard')).toBe(true);
+      TestBed.resetTestingModule();
+      setup(createJwt({ role: 'Admin' }));
+      expect(run(dashboardGuard, '/dashboard')).toBe(true);
+    });
+
+    it('un Employee va directo a Ventas, sin pasar por un panel que no puede cargar', () => {
+      setup(createJwt({ role: 'Employee' }));
+
+      expect(run(dashboardGuard, '/dashboard')).toBe('/sales');
+    });
+
+    it('sin sesión va al login', () => {
+      setup();
+
+      expect(run(dashboardGuard, '/dashboard')).toBe('/auth/login?returnUrl=%2Fdashboard');
     });
   });
 

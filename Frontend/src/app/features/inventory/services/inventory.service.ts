@@ -9,6 +9,7 @@ import {
   Product,
   ProductListQuery,
   ProductUnit,
+  StockSummaryCounts,
   UpdateProductDto,
 } from '../models/product.model';
 
@@ -19,6 +20,7 @@ interface ApiProduct {
   sku: string;
   price: number | string;
   stock: number | string;
+  lowStockThreshold?: number | string;
   unit: ProductUnit;
   categoryId?: string;
   category?: Category | null;
@@ -44,7 +46,6 @@ export class InventoryService {
         sortOrder: query.sortOrder,
         categoryId: query.categoryId,
         stockStatus: query.stockStatus,
-        lowStockThreshold: query.lowStockThreshold,
       })
       .pipe(map((response) => ({ ...response, data: response.data.map(toProduct) })));
   }
@@ -77,6 +78,11 @@ export class InventoryService {
       .pipe(map(() => undefined));
   }
 
+  /** Conteo de productos por estado de stock, calculado por el backend con el mínimo de cada producto. */
+  stockSummary(): Observable<StockSummaryCounts> {
+    return this.api.get<StockSummaryCounts>(`${this.productsPath}/stock-summary`);
+  }
+
   /** Acepta tanto un arreglo simple como una respuesta paginada. */
   listCategories(): Observable<Category[]> {
     return this.api
@@ -96,6 +102,7 @@ function toProduct(raw: ApiProduct): Product {
     sku: raw.sku,
     price: Number(raw.price),
     stock: Number(raw.stock),
+    lowStockThreshold: Number(raw.lowStockThreshold ?? 0),
     unit: raw.unit,
     categoryId: raw.categoryId ?? raw.category?.id ?? '',
     category: raw.category ?? null,

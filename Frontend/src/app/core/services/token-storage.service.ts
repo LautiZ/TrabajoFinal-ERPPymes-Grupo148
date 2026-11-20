@@ -16,6 +16,14 @@ export const TOKEN_STORAGE = new InjectionToken<Storage | null>('TOKEN_STORAGE',
 });
 
 export const TOKEN_STORAGE_KEY = 'erp.auth.token';
+/** Perfil del usuario (nombre y apellido): el JWT no los trae, los entrega el login. */
+export const PROFILE_STORAGE_KEY = 'erp.auth.profile';
+
+export interface StoredProfile {
+  id: string;
+  name: string;
+  surname?: string | null;
+}
 
 /**
  * Único punto de acceso al JWT. `AuthService` y los interceptors lo leen y escriben solo a
@@ -45,9 +53,33 @@ export class TokenStorageService {
     }
   }
 
+  /** Perfil guardado junto al token, o `null` si no hay o está dañado. */
+  getProfile(): StoredProfile | null {
+    try {
+      const raw = this.storage?.getItem(PROFILE_STORAGE_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      if (typeof parsed !== 'object' || parsed === null) {
+        return null;
+      }
+      const { id, name } = parsed as Record<string, unknown>;
+      return typeof id === 'string' && typeof name === 'string' ? (parsed as StoredProfile) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  setProfile(profile: StoredProfile): void {
+    try {
+      this.storage?.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    } catch {
+      // Sin storage el perfil se pierde al recargar; se usa el que trae el token.
+    }
+  }
+
   clear(): void {
     this._token.set(null);
     try {
+      this.storage?.removeItem(PROFILE_STORAGE_KEY);
       this.storage?.removeItem(TOKEN_STORAGE_KEY);
     } catch {
       // Nada más que limpiar.

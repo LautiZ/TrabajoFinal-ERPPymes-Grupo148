@@ -65,7 +65,7 @@ export function toQueryParams(state: ListState): Params {
 }
 
 /** Estado de la vista -> consulta al backend. */
-export function toListQuery(state: ListState, lowStockThreshold?: number): ProductListQuery {
+export function toListQuery(state: ListState): ProductListQuery {
   return {
     page: state.page,
     limit: state.limit,
@@ -74,7 +74,6 @@ export function toListQuery(state: ListState, lowStockThreshold?: number): Produ
     sortOrder: state.sortOrder,
     categoryId: state.categoryId || undefined,
     stockStatus: state.stockStatus || undefined,
-    lowStockThreshold: state.stockStatus === 'low' ? lowStockThreshold : undefined,
   };
 }
 

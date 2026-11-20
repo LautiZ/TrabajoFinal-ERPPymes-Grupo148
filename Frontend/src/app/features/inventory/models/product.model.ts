@@ -35,6 +35,8 @@ export interface Product {
   sku: string;
   price: number;
   stock: number;
+  /** Mínimo propio del producto: está en "stock bajo" cuando `stock <= lowStockThreshold`. 0 = sin alerta. */
+  lowStockThreshold: number;
   unit: ProductUnit;
   categoryId: string;
   category: Category | null;
@@ -53,6 +55,7 @@ export interface CreateProductDto {
   unit: ProductUnit;
   categoryId: string;
   active?: boolean;
+  lowStockThreshold?: number;
 }
 
 /** El stock no se edita directamente (RN-01): se ajusta con `adjustStock`. */
@@ -63,6 +66,7 @@ export interface UpdateProductDto {
   unit?: ProductUnit;
   categoryId?: string;
   active?: boolean;
+  lowStockThreshold?: number;
 }
 
 export type StockMovementType = 'Income' | 'Outcome';
@@ -76,13 +80,19 @@ export interface AdjustStockDto {
 
 export type ProductSortField = 'name' | 'sku' | 'category' | 'price' | 'stock';
 
+/** Conteo de productos por estado de stock (`GET /products/stock-summary`). */
+export interface StockSummaryCounts {
+  total: number;
+  ok: number;
+  low: number;
+  out: number;
+}
+
 export type StockStatusFilter = 'low' | 'out';
 
 export interface ProductListQuery extends PaginationQuery {
   sortBy?: ProductSortField;
   categoryId?: string;
-  /** `low`: stock por debajo del umbral; `out`: sin stock. */
+  /** `low`: stock en o por debajo del mínimo de cada producto; `out`: sin stock. */
   stockStatus?: StockStatusFilter;
-  /** Umbral con el que el backend interpreta "stock bajo". */
-  lowStockThreshold?: number;
 }

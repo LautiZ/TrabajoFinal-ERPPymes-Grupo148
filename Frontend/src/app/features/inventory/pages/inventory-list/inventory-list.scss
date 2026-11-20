@@ -2,6 +2,7 @@
   display: block;
 }
 
+/* Filtros */
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -18,6 +19,7 @@
   flex: 1 1 18rem;
 }
 
+/* Contenedor de la tabla */
 .table-card {
   padding: 0;
   overflow: hidden;
@@ -37,15 +39,66 @@
   pointer-events: none;
 }
 
+/* Tabla */
 table {
   width: 100%;
+  table-layout: fixed;
   background: transparent;
 }
 
-.num {
-  text-align: right;
+/* Ancho de columnas */
+.mat-column-product {
+  width: 26%;
 }
 
+.mat-column-category {
+  width: 16%;
+}
+
+.mat-column-price {
+  width: 15%;
+}
+
+.mat-column-stock {
+  width: 27%;
+}
+
+.mat-column-status {
+  width: 12%;
+  padding-left: 1rem;
+}
+
+.mat-column-actions {
+  width: 4rem;
+}
+
+/* Columnas numéricas: mismo padding en header y celda */
+th.mat-mdc-header-cell.num,
+td.mat-mdc-cell.num {
+  text-align: right !important;
+  padding-right: 1.5rem;
+}
+
+th.mat-mdc-header-cell.mat-column-stock.num {
+  padding-right: 2.5rem;
+}
+
+td.mat-mdc-cell.num {
+  white-space: nowrap;
+}
+
+/* Forzar la alineación del contenedor flex de Material hacia la derecha */
+th.mat-mdc-header-cell.num ::ng-deep .mat-sort-header-container {
+  display: flex !important;
+  width: 100% !important;
+  justify-content: flex-end !important;
+}
+
+th.mat-mdc-header-cell.num ::ng-deep .mat-sort-header-content {
+  text-align: right !important;
+}
+
+/* Información del producto */
 .cell-title {
   display: block;
   font: var(--mat-sys-title-small);
@@ -57,11 +110,28 @@ table {
   color: var(--app-text-muted);
 }
 
+/* Stock: cantidad alineada y badge al lado con separación pareja */
+.stock-cell {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.stock-cell__quantity {
+  min-width: 4.25rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Estado */
 .app-badge--paused {
   color: var(--app-text-muted);
   background: var(--app-surface-3);
 }
 
+/* Estados de carga y error */
 .state {
   display: flex;
   flex-direction: column;
@@ -75,16 +145,19 @@ table {
   }
 }
 
+/* Paginación */
 mat-paginator {
   background: transparent;
   border-top: 1px solid var(--app-border);
 }
 
+/* Acciones */
 .actions-col {
-  width: 3.5rem;
+  width: 4rem;
   text-align: right;
 }
 
+/* Filas según stock */
 .row--low {
   background: color-mix(in srgb, var(--app-warning) 7%, transparent);
 }

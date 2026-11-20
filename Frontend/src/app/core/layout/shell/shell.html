@@ -50,20 +50,71 @@
         <mat-icon fontSet="material-symbols-outlined">menu</mat-icon>
       </button>
 
-      <label class="search">
-        <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">search</mat-icon>
-        <input
-          type="search"
-          placeholder="Buscar productos, SKU u órdenes… (próximamente)"
-          aria-label="Búsqueda global"
-          disabled
-        />
-      </label>
+      <div class="search-box" (keydown.escape)="closeResults()">
+  <label class="search">
+    <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">search</mat-icon>
+    <input
+      type="search"
+      placeholder="Buscar productos o SKU…"
+      aria-label="Búsqueda global"
+      autocomplete="off"
+      [formControl]="searchControl"
+      (focus)="openIfHasQuery()"
+    />
+    @if (searchControl.value) {
+    <button
+      type="button"
+      class="search__clear"
+      aria-label="Limpiar búsqueda"
+      (click)="clearSearch()"
+    >
+      <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">close</mat-icon>
+    </button>
+    }
+  </label>
 
-      <a mat-flat-button class="topbar__new" routerLink="/sales">
-        <mat-icon fontSet="material-symbols-outlined">add</mat-icon>
-        Nuevo
-      </a>
+  @if (dropdownOpen()) {
+  <div class="search-results" role="listbox" aria-label="Resultados de búsqueda">
+    @if (searching()) {
+    <div class="search-results__state">Buscando…</div>
+    } @else if (searchError()) {
+    <div class="search-results__state">No se pudo buscar en este momento.</div>
+    } @else if (results().length === 0) {
+    <div class="search-results__state">Sin coincidencias para "{{ currentQuery() }}".</div>
+    } @else {
+    <div class="search-results__group">Productos</div>
+    @for (product of results(); track product.id) {
+    <button
+      type="button"
+      class="search-results__item"
+      (click)="selectProduct(product)"
+    >
+      <span class="search-results__main">
+        <strong>{{ product.name }}</strong>
+        <span class="search-results__sku">{{ product.sku }}</span>
+      </span>
+      <span class="search-results__meta">
+        {{ product.price | currency: 'ARS' : 'symbol-narrow' }}
+      </span>
+    </button>
+    }
+    }
+  </div>
+  }
+</div>
+
+      <div class="topbar__actions">
+        @if (canCreateUsers()) {
+        <a mat-stroked-button class="topbar__create-user" routerLink="/users/new">
+          <mat-icon fontSet="material-symbols-outlined">person_add</mat-icon>
+          Crear usuario
+        </a>
+        }
+        <a mat-flat-button class="topbar__new" routerLink="/sales">
+          <mat-icon fontSet="material-symbols-outlined">add</mat-icon>
+          Nuevo
+        </a>
+      </div>
 
       <div class="user">
         <span class="user__avatar" aria-hidden="true">{{ initials() }}</span>

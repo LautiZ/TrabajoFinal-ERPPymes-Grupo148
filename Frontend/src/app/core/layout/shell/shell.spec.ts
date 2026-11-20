@@ -56,7 +56,8 @@ describe('Shell', () => {
     it('un empleado ve inventario y ventas pero no la analítica', async () => {
       await create('Employee');
 
-      expect(labels()).toEqual(['Panel Principal', 'Inventario & Stock', 'Ventas & Pagos']);
+      expect(labels()).toEqual(['Inventario & Stock', 'Ventas & Pagos']);
+      expect(labels()).not.toContain('Panel Principal');
     });
 
     it('cada link apunta a su ruta', async () => {
@@ -66,6 +67,31 @@ describe('Shell', () => {
         a.getAttribute('href'),
       );
       expect(hrefs).toEqual(['/dashboard', '/inventory', '/sales', '/analytics']);
+    });
+  });
+
+  describe('botón "Crear usuario"', () => {
+    const createButton = (): HTMLAnchorElement | null =>
+      element.querySelector('a.topbar__create-user');
+
+    it('el propietario lo ve y lleva a /users/new', async () => {
+      await create('Owner');
+
+      expect(createButton()?.textContent).toContain('Crear usuario');
+      expect(createButton()?.getAttribute('href')).toBe('/users/new');
+    });
+
+    it('un administrador también lo ve', async () => {
+      await create('Admin');
+
+      expect(createButton()).not.toBeNull();
+    });
+
+    it('un empleado no lo ve', async () => {
+      await create('Employee');
+
+      expect(createButton()).toBeNull();
+      expect(element.textContent).not.toContain('Crear usuario');
     });
   });
 

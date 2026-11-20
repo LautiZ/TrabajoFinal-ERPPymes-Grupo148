@@ -12,6 +12,7 @@ export function createProduct(overrides: Partial<Product> = {}): Product {
     sku: 'YER-001',
     price: 4500,
     stock: 25,
+    lowStockThreshold: 5,
     unit: 'Unit',
     categoryId: category?.id ?? 'c1',
     category,

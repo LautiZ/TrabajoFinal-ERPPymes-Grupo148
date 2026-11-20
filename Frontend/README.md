@@ -2,6 +2,21 @@
 
 Aplicación cliente construida en Angular 22 utilizando arquitectura modular por features y carga bajo demanda (lazy loading).
 
+## Permisos por rol (UX)
+
+Según las reglas de negocio (RN-16 a RN-16.3). Los guards del front solo evitan mostrar pantallas
+que no corresponden: la seguridad real la aplica el Gateway en cada request. La matriz completa
+está verificada en `src/app/core/permissions-matrix.spec.ts`.
+
+| Pantalla / acción                         | Owner           | Admin    | Employee         |
+| ----------------------------------------- | --------------- | -------- | ---------------- |
+| Panel principal (usa analítica)           | Sí              | Sí       | No (va a Ventas) |
+| Analítica                                 | Sí              | Sí       | No               |
+| Inventario (ver, alta, edición, stock)    | Sí              | Sí       | Sí               |
+| Ventas y cobro (POS, checkout, resultado) | Sí              | Sí       | Sí               |
+| Botón "Crear usuario"                     | Sí              | Sí       | No               |
+| Roles que se pueden asignar al crear      | Admin, Employee | Employee | —                |
+
 ## Estructura de carpetas
 
 ```text
@@ -9,9 +24,10 @@ src/app/
 ├── core/                  # Servicios singleton, guards, interceptors HTTP y modelos globales
 ├── shared/                # Componentes, pipes y directivas reutilizables en múltiples módulos
 └── features/              # Módulos de negocio independientes (Lazy Loaded)
-    ├── auth/              # Login, registro y manejo de sesión
+    ├── auth/              # Login y manejo de sesión (las cuentas las crea el Owner/Admin)
     ├── inventory/         # Catálogo de productos y movimientos de stock
     ├── sales/             # Punto de venta (POS), carrito y pagos
+    ├── users/             # Alta de usuarios: el Owner crea Admin/Employee; el Admin solo Employee (RN-16)
     ├── dashboard/         # Métricas financieras y analítica
     └── not-found/         # Página de error 404
 

@@ -12,7 +12,6 @@ import type { Mock } from 'vitest';
 import { PaginatedResponse } from '../../../../core/models/pagination.model';
 import { Product } from '../../models/product.model';
 import { InventoryService } from '../../services/inventory.service';
-import { INVENTORY_STORAGE } from '../../services/low-stock-threshold.service';
 import { StockSummaryService } from '../../services/stock-summary.service';
 import { createCategory, createProduct } from '../../testing/factories';
 import { InventoryList } from './inventory-list';
@@ -54,7 +53,6 @@ describe('InventoryList', () => {
       providers: [
         { provide: InventoryService, useValue: inventory },
         { provide: StockSummaryService, useValue: summary },
-        { provide: INVENTORY_STORAGE, useValue: null },
         provideRouter([]),
         {
           provide: ActivatedRoute,
@@ -141,7 +139,6 @@ describe('InventoryList', () => {
         sortOrder: 'desc',
         categoryId: 'c1',
         stockStatus: 'low',
-        lowStockThreshold: 10,
       }),
     );
     const input = (fixture.nativeElement as HTMLElement).querySelector('input[type=search]');
@@ -355,31 +352,12 @@ describe('InventoryList', () => {
     fixture.detectChanges();
     expect(params$.value.get('stockStatus')).toBe('low');
     expect(inventory.list).toHaveBeenLastCalledWith(
-      expect.objectContaining({ stockStatus: 'low', page: 1, lowStockThreshold: 10 }),
+      expect.objectContaining({ stockStatus: 'low', page: 1 }),
     );
 
     out.click();
     fixture.detectChanges();
     expect(params$.value.get('stockStatus')).toBe('out');
-  });
-
-  it('al cambiar el umbral vuelve a consultar con el nuevo valor y refresca el resumen', async () => {
-    await create({ stockStatus: 'low' });
-    await fixture.whenStable();
-    summary.load.mockClear();
-
-    const input = (fixture.nativeElement as HTMLElement).querySelector(
-      '#low-stock-threshold',
-    ) as HTMLInputElement;
-    input.value = '25';
-    input.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(inventory.list).toHaveBeenLastCalledWith(
-      expect.objectContaining({ stockStatus: 'low', lowStockThreshold: 25 }),
-    );
-    expect(summary.load).toHaveBeenCalledWith(25);
   });
 
   it('refrescar la tabla también refresca el resumen', async () => {

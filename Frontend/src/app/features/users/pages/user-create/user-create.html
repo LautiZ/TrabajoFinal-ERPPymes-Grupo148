@@ -1,0 +1,92 @@
+<app-page-header
+  eyebrow="Administración"
+  title="Crear usuario"
+  [subtitle]="
+    singleRole()
+      ? 'Dá de alta una cuenta de empleado.'
+      : 'Dá de alta una cuenta de administrador o de empleado.'
+  "
+/>
+
+<form class="form app-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <mat-form-field appearance="outline">
+    <mat-label>Nombre</mat-label>
+    <input matInput formControlName="name" autocomplete="off" required />
+    @if (form.controls.name.hasError('required')) {
+    <mat-error>El nombre es obligatorio.</mat-error>
+    } @else if (form.controls.name.hasError('maxlength')) {
+    <mat-error>Máximo 100 caracteres.</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Apellido (opcional)</mat-label>
+    <input matInput formControlName="surname" autocomplete="off" />
+    @if (form.controls.surname.hasError('maxlength')) {
+    <mat-error>Máximo 100 caracteres.</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="form__wide">
+    <mat-label>Email</mat-label>
+    <input matInput type="email" formControlName="email" autocomplete="off" required />
+    @if (form.controls.email.hasError('required')) {
+    <mat-error>El email es obligatorio.</mat-error>
+    } @else if (form.controls.email.hasError('email')) {
+    <mat-error>Ingresá un email válido.</mat-error>
+    } @else if (form.controls.email.hasError('duplicate')) {
+    <mat-error>Ya existe un usuario con ese email.</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Contraseña inicial</mat-label>
+    <input
+      matInput
+      [type]="showPassword() ? 'text' : 'password'"
+      formControlName="password"
+      autocomplete="new-password"
+      required
+    />
+    <button
+      mat-icon-button
+      matSuffix
+      type="button"
+      [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+      (click)="togglePassword()"
+    >
+      <mat-icon fontSet="material-symbols-outlined"
+        >{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon
+      >
+    </button>
+    <mat-hint>Entre 8 y 128 caracteres.</mat-hint>
+    @if (form.controls.password.hasError('required')) {
+    <mat-error>La contraseña es obligatoria.</mat-error>
+    } @else if (form.controls.password.hasError('minlength')) {
+    <mat-error>Debe tener al menos 8 caracteres.</mat-error>
+    } @else if (form.controls.password.hasError('maxlength')) {
+    <mat-error>Máximo 128 caracteres.</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Rol</mat-label>
+    <mat-select formControlName="role" required>
+      @for (role of roles(); track role) {
+      <mat-option [value]="role">{{ roleLabels[role] }}</mat-option>
+      }
+    </mat-select>
+    @if (singleRole()) {
+    <mat-hint>Los administradores solo pueden crear empleados.</mat-hint>
+    }
+  </mat-form-field>
+
+  <div class="form__actions">
+    <a mat-button routerLink="/dashboard">Cancelar</a>
+    <button mat-flat-button type="submit" [disabled]="saving()">
+      @if (saving()) {
+      <mat-progress-spinner mode="indeterminate" diameter="20" />
+      Creando... } @else { Crear usuario }
+    </button>
+  </div>
+</form>

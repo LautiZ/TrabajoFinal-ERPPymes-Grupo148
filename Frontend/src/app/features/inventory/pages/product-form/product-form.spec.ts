@@ -140,6 +140,21 @@ describe('ProductForm', () => {
       expect(form().controls['stock'].errors).toHaveProperty('integer');
     });
 
+    it('valida el stock mínimo: no negativo, hasta 3 decimales, y se envía al backend', () => {
+      form().patchValue({ lowStockThreshold: -1 });
+      expect(form().controls['lowStockThreshold'].errors).toHaveProperty('min');
+      form().patchValue({ lowStockThreshold: 1.2345 });
+      expect(form().controls['lowStockThreshold'].errors).toHaveProperty('maxDecimals');
+
+      fillValid();
+      form().patchValue({ lowStockThreshold: 8 });
+      call('submit');
+
+      expect(inventory.create).toHaveBeenCalledWith(
+        expect.objectContaining({ lowStockThreshold: 8 }),
+      );
+    });
+
     it('valida SKU: sin espacios', () => {
       fillValid({ sku: 'YER 001' });
       expect(form().controls['sku'].errors).toHaveProperty('pattern');
@@ -158,6 +173,7 @@ describe('ProductForm', () => {
         unit: 'Unit',
         categoryId: 'c1',
         active: true,
+        lowStockThreshold: 0,
       });
       expect(notify.success).toHaveBeenCalledWith('Producto creado.');
       expect(navigate).toHaveBeenCalledWith(['/inventory']);
@@ -223,6 +239,7 @@ describe('ProductForm', () => {
         price: 5000,
         categoryId: 'c1',
         active: false,
+        lowStockThreshold: 5,
       });
       expect(inventory.create).not.toHaveBeenCalled();
       expect(notify.success).toHaveBeenCalledWith('Producto actualizado.');

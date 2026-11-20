@@ -118,17 +118,13 @@ describe('toListQuery', () => {
       sortOrder: 'asc',
       categoryId: undefined,
       stockStatus: undefined,
-      lowStockThreshold: undefined,
     });
   });
 
-  it('envía el umbral solo cuando se filtra por stock bajo', () => {
-    expect(toListQuery({ ...DEFAULT_LIST_STATE, stockStatus: 'low' }, 15).lowStockThreshold).toBe(
-      15,
+  it('el filtro de stock bajo no envía umbral: el backend usa el mínimo de cada producto', () => {
+    expect(toListQuery({ ...DEFAULT_LIST_STATE, stockStatus: 'low' })).not.toHaveProperty(
+      'lowStockThreshold',
     );
-    expect(
-      toListQuery({ ...DEFAULT_LIST_STATE, stockStatus: 'out' }, 15).lowStockThreshold,
-    ).toBeUndefined();
   });
 });
 

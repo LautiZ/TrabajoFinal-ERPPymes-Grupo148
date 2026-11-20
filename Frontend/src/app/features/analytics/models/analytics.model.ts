@@ -48,4 +48,6 @@ export interface InventoryValuationResponse {
   totalValuation: number;
   totalUnits: number;
   lowStockCount: number;
+  outOfStockCount?: number;
+  activeProducts?: number;
 }

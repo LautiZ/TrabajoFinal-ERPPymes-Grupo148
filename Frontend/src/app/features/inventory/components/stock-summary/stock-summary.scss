@@ -62,21 +62,6 @@
   color: var(--app-text-muted);
 }
 
-.tile--threshold input {
-  width: 100%;
-  padding: 0.4rem 0.6rem;
-  font: var(--mat-sys-title-medium);
-  color: var(--app-text);
-  background: var(--app-bg);
-  border: 1px solid var(--app-border-strong);
-  border-radius: var(--app-radius-sm);
-
-  &:focus-visible {
-    outline: 2px solid var(--app-accent);
-    outline-offset: 1px;
-  }
-}
-
 .error {
   margin: 0.5rem 0 0;
   color: var(--app-danger);

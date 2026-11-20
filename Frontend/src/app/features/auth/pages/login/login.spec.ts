@@ -93,10 +93,9 @@ describe('Login', () => {
       });
     });
 
-    it('ofrece ir a crear una cuenta', () => {
-      const link = root().querySelector('a[href="/auth/register"]');
-
-      expect(link?.textContent).toContain('Crear cuenta');
+    it('no ofrece crear cuenta: las cuentas las da de alta el Owner o un Admin', () => {
+      expect(root().querySelector('a[href="/auth/register"]')).toBeNull();
+      expect(root().textContent).not.toContain('Crear cuenta');
     });
 
     it('permite mostrar y ocultar la contraseña', () => {
@@ -213,12 +212,6 @@ describe('Login', () => {
       expect(text()).toContain('Tu sesión ya no es válida');
     });
 
-    it('confirma que la cuenta fue creada', async () => {
-      await create({ registered: '1' });
-
-      expect(text()).toContain('Tu cuenta fue creada');
-    });
-
     it('sin motivo no muestra ningún aviso', async () => {
       await create();
 
@@ -257,10 +250,7 @@ describe('loginErrorMessage', () => {
 });
 
 describe('loginNotice', () => {
-  it('prioriza la cuenta recién creada y reconoce los motivos de cierre', () => {
-    expect(loginNotice(convertToParamMap({ registered: '1', reason: 'expired' }))).toContain(
-      'creada',
-    );
+  it('reconoce los motivos de cierre', () => {
     expect(loginNotice(convertToParamMap({ reason: 'expired' }))).toContain('expiró');
     expect(loginNotice(convertToParamMap({ reason: 'unauthorized' }))).toContain('ya no es válida');
     expect(loginNotice(convertToParamMap({ reason: 'otra-cosa' }))).toBeNull();

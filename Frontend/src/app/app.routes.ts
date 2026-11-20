@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard, roleGuard } from './core/guards/auth.guard';
+import { authGuard, dashboardGuard, guestGuard, roleGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -8,18 +8,18 @@ export const routes: Routes = [
     pathMatch: 'full',
   },
   {
+    // Mercado Pago devuelve al comprador a /payments/success|failure|pending (URLs que arma el backend).
+    // Se reenvía a la pantalla de resultado del módulo de ventas conservando los parámetros de retorno.
+    path: 'payments/:result',
+    redirectTo: 'sales/payment/:result',
+  },
+  {
     path: 'auth',
     children: [
       {
         path: 'login',
         canActivate: [guestGuard],
         loadComponent: () => import('./features/auth/pages/login/login').then((m) => m.Login),
-      },
-      {
-        path: 'register',
-        canActivate: [guestGuard],
-        loadComponent: () =>
-          import('./features/auth/pages/register/register').then((m) => m.Register),
       },
     ],
   },
@@ -31,6 +31,7 @@ export const routes: Routes = [
     children: [
       {
         path: 'dashboard',
+        canActivate: [dashboardGuard],
         loadComponent: () =>
           import('./features/dashboard/pages/dashboard/dashboard').then((m) => m.Dashboard),
       },
@@ -49,6 +50,14 @@ export const routes: Routes = [
         data: { roles: ['Owner', 'Admin'] },
         loadChildren: () =>
           import('./features/analytics/analytics.routes').then((m) => m.ANALYTICS_ROUTES),
+      },
+      {
+        // Alta de usuarios: Owner crea Admin/Employee; Admin crea Employee (RN-16).
+        path: 'users/new',
+        canActivate: [authGuard, roleGuard],
+        data: { roles: ['Owner', 'Admin'] },
+        loadComponent: () =>
+          import('./features/users/pages/user-create/user-create').then((m) => m.UserCreate),
       },
       {
         path: 'forbidden',

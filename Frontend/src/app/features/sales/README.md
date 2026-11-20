@@ -5,34 +5,37 @@ Se carga con lazy loading bajo `/sales` (`sales.routes.ts`).
 
 ## Rutas
 
-| Ruta                     | Pantalla                                                  |
-| ------------------------ | --------------------------------------------------------- |
-| `/sales`                 | POS: búsqueda de productos + carrito                      |
-| `/sales/checkout`        | Datos del cobro y confirmación                            |
-| `/sales/payment/:result` | Retorno de Mercado Pago (`success`, `failure`, `pending`) |
+| Ruta                     | Pantalla                                                                  |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `/sales`                 | POS: búsqueda de productos + carrito                                      |
+| `/sales/checkout`        | Resumen de la orden y confirmación                                        |
+| `/sales/payment/:result` | Retorno de Mercado Pago (`success`, `failure`, `pending`)                 |
+| `/payments/:result`      | Redirige a `/sales/payment/:result` (URLs de retorno que arma el backend) |
 
 ## Flujo de cobro
 
 1. **Checkout** refresca el stock del carrito (`StockCheckService.verify`). Si algo ya no alcanza, muestra el diálogo de conflicto y no crea nada.
 2. `POST /sales` con `{ items: [{ productId, quantity }] }`. El total **no se envía**: lo calcula el backend (RN-06).
-3. `POST /payments` con `{ saleId, backUrls, payer: { name, email } }` → `{ initPoint }`. El monto lo resuelve el backend a partir de la venta.
-4. Redirección al `initPoint` (solo dominios de Mercado Pago).
-5. Mercado Pago vuelve a `/sales/payment/:result?external_reference=<saleId>`. La pantalla **no confía en la URL**: consulta `GET /sales/:id` y `GET /payments/sale/:saleId`, hace polling corto mientras esté pendiente y, solo al confirmarse el pago, vacía el carrito.
+3. `POST /payments` con `{ saleId }` (el Gateway rechaza cualquier otro campo) → `Payment { id, saleId, amount, state, checkoutUrl, createdAt }`. El monto, el pagador y las URLs de retorno los resuelve el backend a partir de la venta.
+4. Redirección al `checkoutUrl` (solo dominios https de Mercado Pago). Si ya no se puede cobrar, llega `409 SALE_NOT_PAYABLE` y el checkout arma una venta nueva en el reintento.
+5. Mercado Pago vuelve a `/payments/:result?external_reference=<saleId>` (que redirige a `/sales/payment/:result`). La pantalla **no confía en la URL**: consulta `GET /sales/:id` y `GET /payments/sale/:saleId`, hace polling corto mientras esté pendiente y, solo al confirmarse el pago, vacía el carrito.
 
-## Contrato asumido con el backend
+## Contrato con el backend (Gateway, prefijo `/api`)
 
-Los microservicios del Gateway todavía son un scaffold, así que estos endpoints y formas **son supuestos** a validar con backend (TES-25, TES-28, TES-29):
+Alineado con los controllers del Gateway y los DTOs de `Backend/libs/contracts`:
 
 - `GET /products?page&limit&search&active=true` → `{ data: Product[], meta }` (decimales pueden llegar como string).
 - `GET /products/:id` → `Product`.
-- `POST /sales` → `{ id, total, currentState }`.
-- `GET /sales/:id` → `{ id, total, currentState }` (`Ordered | Paid | Dispatched | Cancelled`).
-- `POST /payments` → `{ initPoint }` (también se acepta `init_point`).
-- `GET /payments/sale/:saleId` → `{ id, saleId, paymentState, amount }`; `404` si todavía no existe.
-- Stock insuficiente: `409` (o `422`) con `{ code: 'INSUFFICIENT_STOCK', items: [{ productId, requested, available }] }`. Si llega el código sin `items`, se re-consulta el stock real.
+- `POST /sales` con `{ items: [{ productId, quantity }] }` → `SaleView` (`id`, `total`, `currentState`…).
+- `GET /sales/:id` → `SaleView` (`currentState`: `Ordered | Paid | Dispatched | Cancelled`).
+- `POST /payments` con `{ saleId }` → `Payment` (`state`: `Pending | Paid | Rejected | Refunded`; `checkoutUrl` es `null` si el intento ya se cerró).
+  Errores: `404` venta inexistente, `409 SALE_NOT_PAYABLE`, `409` pago en curso, `502` Mercado Pago rechazó, `503` servicio ocupado, `504` demora.
+- `GET /payments/sale/:saleId` → último `Payment` de la venta; `404` si todavía no existe.
+- Stock insuficiente: `409` con `{ code: 'INSUFFICIENT_STOCK', items: [{ productId, name, requested, available }] }`.
 
 ## Pendientes de integración
 
 - **Guards:** `SALES_GUARDS` exige sesión (`authGuard`). El módulo no restringe por rol.
 - **Catálogo:** `CatalogService` es un adaptador de solo lectura propio de Ventas; reemplazarlo por `InventoryService` cuando el módulo de Inventario lo exponga (TES-52).
-- **Roles:** según las reglas de negocio, un `Employee` no accede al Payments MS; el cobro con Mercado Pago requeriría `Owner`/`Admin`.
+- **Roles:** todos los roles pueden crear pagos (RN-16.3), incluido `Employee`.
+- **Retorno de Mercado Pago:** el backend arma las URLs con `FRONTEND_URL`; debe coincidir con el origen donde se sirve el front (`http://localhost:4200` con `ng serve`, `:8080` con Docker).
