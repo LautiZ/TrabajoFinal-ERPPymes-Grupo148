@@ -100,6 +100,10 @@ export class Dashboard implements OnInit {
                   ...indicator,
                   value:
                     inventory != null ? arsFormatter.format(Number(inventory.totalValuation)) : '—',
+                  hint:
+                    inventory != null
+                      ? `${Number(inventory.totalUnits)} unidades en stock`
+                      : indicator.hint,
                 };
               case 'lowStock':
                 return {
@@ -113,6 +117,10 @@ export class Dashboard implements OnInit {
                     monthSummary != null
                       ? arsFormatter.format(Number(monthSummary.current.revenue))
                       : '—',
+                  hint:
+                    monthSummary != null
+                      ? `${Number(monthSummary.current.salesCount)} ventas registradas`
+                      : indicator.hint,
                 };
               case 'todaySales':
                 return {
@@ -121,6 +129,10 @@ export class Dashboard implements OnInit {
                     todaySummary != null
                       ? arsFormatter.format(Number(todaySummary.current.revenue))
                       : '—',
+                  hint:
+                    todaySummary != null
+                      ? `${Number(todaySummary.current.salesCount)} ventas hoy`
+                      : indicator.hint,
                 };
             }
           }),

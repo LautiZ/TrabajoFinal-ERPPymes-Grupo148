@@ -33,12 +33,13 @@ export class CatalogService {
         page: query.page ?? 1,
         limit: query.limit ?? 24,
         search: query.search,
-        active: true,
       })
       .pipe(
         map((response) => ({
           ...response,
-          data: response.data.filter((p) => !p.deleted).map(toCatalogProduct),
+          data: response.data
+            .filter((p) => !p.deleted && (p.active ?? true))
+            .map(toCatalogProduct),
         })),
       );
   }
