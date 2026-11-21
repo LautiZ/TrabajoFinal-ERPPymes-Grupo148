@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push cancels the previous run on feature branches, but never on main:
+# cancelling there could kill a deploy halfway through
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    services:
+      # Throwaway database for the ERP integration tests: lives only inside the job,
+      # so it needs no password at all
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0 # same as Backend/Dockerfile
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.11.1 # same as Backend/Dockerfile
+          cache: pnpm
+          cache-dependency-path: Backend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      # Generated Prisma clients are not versioned; unit tests import them
+      - run: pnpm prisma:generate
+      - name: Build every app
+        run: for app in gateway auth erp payments; do pnpm exec nest build $app; done
+      - name: Unit tests
+        run: pnpm test
+      - name: Integration tests (real Postgres)
+        run: |
+          # test-database.ts reads the root .env for the admin connection
+          printf 'POSTGRES_USER=postgres\n' > ../.env
+          pnpm test:int:erp
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend/package.json # pnpm version from "packageManager"
+      - uses: actions/setup-node@v5
+        with:
+          package_json_file: Frontend/package.json # pnpm version from "packageManager"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.15.0 # same as Frontend/Dockerfile
+          cache: pnpm
+          cache-dependency-path: Frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test --watch=false
+
+  deploy:
+    # Only when both test jobs pass, and only for pushes to main (never for PRs)
+    needs: [backend, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The key's forced command on the VM pulls main and runs deploy/deploy.sh;
+          # the key cannot run anything else
+          ssh -T -i ~/.ssh/deploy_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 \
+            "azureuser@$HOST"
