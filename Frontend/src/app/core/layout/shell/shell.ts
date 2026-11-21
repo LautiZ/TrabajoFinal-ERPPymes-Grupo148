@@ -12,6 +12,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
@@ -30,6 +31,10 @@ import { InventoryService } from '../../../features/inventory/services/inventory
 import { ROLE_LABELS, UserRole } from '../../models/auth.model';
 import { canCreateUsers } from '../../utils/user-creation';
 import { AuthService } from '../../services/auth.service';
+import {
+  ConfirmDialog,
+  ConfirmDialogData,
+} from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 interface NavItem {
   label: string;
@@ -74,6 +79,7 @@ export class Shell {
   private readonly auth = inject(AuthService);
   private readonly inventory = inject(InventoryService);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
   private readonly hostRef = inject(ElementRef<HTMLElement>);
 
@@ -185,6 +191,26 @@ export class Shell {
     if (!this.hostRef.nativeElement.contains(event.target as Node)) {
       this.dropdownOpen.set(false);
     }
+  }
+
+  /** Asks for confirmation before ending the session. */
+  protected confirmLogout(): void {
+    if (this.loggingOut()) {
+      return;
+    }
+    this.dialog
+      .open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, {
+        data: {
+          title: 'Cerrar sesión',
+          message: '¿Estás seguro de cerrar la sesión?',
+          confirmText: 'Cerrar sesión',
+          cancelText: 'Cancelar',
+          destructive: true,
+        },
+      })
+      .afterClosed()
+      .pipe(filter(Boolean))
+      .subscribe(() => this.logout());
   }
 
   /** Revoca la sesión en el servidor, limpia el estado local y vuelve al login. */

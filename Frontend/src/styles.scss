@@ -72,6 +72,16 @@ html {
   --mat-sys-primary-container: var(--app-accent-soft);
   --mat-sys-on-primary-container: var(--app-accent);
   --mat-sys-error: var(--app-danger);
+
+  // primary-container is translucent here, and the slide toggle uses it for the
+  // handle on hover/focus/press, so the handle would vanish over the track.
+  @include mat.slide-toggle-overrides(
+    (
+      selected-hover-handle-color: var(--app-on-accent),
+      selected-focus-handle-color: var(--app-on-accent),
+      selected-pressed-handle-color: var(--app-on-accent),
+    )
+  );
 }
 
 body {
