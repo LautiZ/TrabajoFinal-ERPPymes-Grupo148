@@ -71,6 +71,20 @@ describe('AuthGuard', () => {
     },
   );
 
+  it.each(['Token expired', 'Session revoked'])(
+    'should answer 401 and never attach a user when Auth rejects with "%s"',
+    async (message) => {
+      authClient.send.mockReturnValue(
+        throwError(() => ({ status: 401, message })),
+      );
+      const { request, context } = contextWith({ authorization: 'Bearer tkn' });
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(request.user).toBeUndefined();
+    },
+  );
+
   it('should return 503 when Auth is unreachable', async () => {
     authClient.send.mockReturnValue(
       throwError(() => new Error('ECONNREFUSED')),
