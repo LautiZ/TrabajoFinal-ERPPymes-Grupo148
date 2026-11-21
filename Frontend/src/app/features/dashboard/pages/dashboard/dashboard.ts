@@ -7,13 +7,20 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTableModule } from '@angular/material/table';
 import { catchError, forkJoin, of } from 'rxjs';
 import { EmptyState } from '../../../../shared/components/empty-state/empty-state';
+import { LoadingSpinner } from '../../../../shared/components/loading-spinner/loading-spinner';
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { StatCard } from '../../../../shared/components/stat-card/stat-card';
 import { AnalyticsService } from '../../../analytics/services/analytics.service';
+import { StockMovement, movementReason } from '../../models/stock-movement.model';
+import { StockMovementsService } from '../../services/stock-movements.service';
+
+const RECENT_MOVEMENTS = 10;
 
 interface Indicator {
   key: 'valuation' | 'lowStock' | 'monthSales' | 'todaySales';
@@ -38,7 +45,17 @@ function toYmd(date: Date): string {
 }
 
 @Component({
-  imports: [RouterLink, MatButtonModule, PageHeader, StatCard, EmptyState],
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    RouterLink,
+    MatButtonModule,
+    MatTableModule,
+    PageHeader,
+    StatCard,
+    EmptyState,
+    LoadingSpinner,
+  ],
   selector: 'app-dashboard',
   styleUrl: './dashboard.scss',
   templateUrl: './dashboard.html',
@@ -47,6 +64,12 @@ function toYmd(date: Date): string {
 export class Dashboard implements OnInit {
   private readonly analytics = inject(AnalyticsService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly stockMovements = inject(StockMovementsService);
+
+  protected readonly movementColumns = ['direction', 'product', 'sku', 'quantity', 'reason', 'date'];
+  protected readonly movements = signal<StockMovement[]>([]);
+  protected readonly movementsLoading = signal(true);
+  protected readonly movementsError = signal(false);
 
   protected readonly indicators = signal<readonly Indicator[]>([
     {
@@ -80,7 +103,32 @@ export class Dashboard implements OnInit {
     },
   ]);
 
+  protected reasonOf(movement: StockMovement): string {
+    return movementReason(movement);
+  }
+
+  protected isIncome(movement: StockMovement): boolean {
+    return movement.direction === 'In';
+  }
+
+  private loadMovements(): void {
+    this.stockMovements
+      .list(1, RECENT_MOVEMENTS)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.movements.set(res.data);
+          this.movementsLoading.set(false);
+        },
+        error: () => {
+          this.movementsError.set(true);
+          this.movementsLoading.set(false);
+        },
+      });
+  }
+
   ngOnInit(): void {
+    this.loadMovements();
     const now = new Date();
     const today = toYmd(now);
     const monthStart = toYmd(new Date(now.getFullYear(), now.getMonth(), 1));
