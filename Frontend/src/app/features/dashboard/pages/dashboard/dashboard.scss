@@ -32,3 +32,39 @@
   margin: 0.25rem 0 0;
   color: var(--app-text-muted);
 }
+
+.panel__state {
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--app-text-muted);
+}
+
+.movements {
+  margin-top: 1rem;
+  overflow-x: auto;
+
+  table {
+    width: 100%;
+  }
+}
+
+.num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--app-text-muted);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.clip {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

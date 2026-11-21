@@ -426,6 +426,29 @@
           ]
         },
         {
+          "name": "Stock movements",
+          "item": [
+            {
+              "name": "List stock movements",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/stock-movements?page=1&limit=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "stock-movements"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "limit", "value": "10" }
+                  ]
+                },
+                "description": "Movimientos de stock de todos los productos, más nuevos primero: salidas por venta, reversión al cancelar, stock inicial y ajustes manuales (con motivo). direction In/Out y quantity siempre positiva. Cualquier rol."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
           "name": "Analytics",
           "item": [
             {

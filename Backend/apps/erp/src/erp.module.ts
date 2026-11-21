@@ -14,6 +14,9 @@ import { CategoriesService } from './categories/categories.service';
 import { SalesController } from './sales/sales.controller';
 import { SalesRepository } from './sales/sales.repository';
 import { SalesService } from './sales/sales.service';
+import { StockMovementsController } from './stock-movements/stock-movements.controller';
+import { StockMovementsRepository } from './stock-movements/stock-movements.repository';
+import { StockMovementsService } from './stock-movements/stock-movements.service';
 import { envs } from './config/envs';
 import {
   SALE_EXPIRATION_OPTIONS,
@@ -28,6 +31,7 @@ import {
     ProductsController,
     CategoriesController,
     SalesController,
+    StockMovementsController,
     AnalyticsController,
   ],
   providers: [
@@ -40,6 +44,8 @@ import {
     CategoriesService,
     SalesRepository,
     SalesService,
+    StockMovementsRepository,
+    StockMovementsService,
     SaleExpirationJob,
     {
       provide: SALE_EXPIRATION_OPTIONS,
