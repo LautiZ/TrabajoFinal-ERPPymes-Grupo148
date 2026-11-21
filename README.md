@@ -12,6 +12,10 @@
 
 - Sebastian Bruselario
 
+
+## Link al Video
+https://youtu.be/a9Q9bDU3UHo
+
 ## Deploy
 
 La aplicación está desplegada en: **[tesis-erp-grupo148.northcentralus.cloudapp.azure.com](https://tesis-erp-grupo148.northcentralus.cloudapp.azure.com)**
