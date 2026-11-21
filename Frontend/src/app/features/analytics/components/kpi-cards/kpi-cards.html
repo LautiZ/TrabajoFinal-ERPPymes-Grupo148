@@ -44,7 +44,7 @@
       <span class="kpi-card__label">Valorización del inventario</span>
       <strong class="kpi-card__value">{{ formattedInventoryValuation() }}</strong>
       <span class="kpi-card__subtext">
-        {{ formatNumber(inventory()?.totalUnits ?? 0) }} unidades totales en stock
+        {{ formatNumber(inventory()?.totalUnits ?? 0,2) }} unidades totales en stock
       </span>
     </article>
 
