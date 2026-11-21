@@ -34,6 +34,7 @@ export const routes: Routes = [
     children: [
       {
         path: 'dashboard',
+        title: 'Panel Principal',
         canActivate: [dashboardGuard],
         loadComponent: () =>
           import('./features/dashboard/pages/dashboard/dashboard').then((m) => m.Dashboard),
@@ -49,6 +50,7 @@ export const routes: Routes = [
       },
       {
         path: 'analytics',
+        title: 'Analítica',
         canActivate: [authGuard, roleGuard],
         data: { roles: ['Owner', 'Admin'] },
         loadChildren: () =>
