@@ -30,6 +30,8 @@ export const ERP_PATTERNS = {
   GET_SALE: 'erp.sales.get',
   MARK_SALE_PAID: 'erp.sales.mark-paid',
   CANCEL_SALE: 'erp.sales.cancel',
+  CANCEL_SALE_BY_USER: 'erp.sales.cancel-by-user',
+  DISPATCH_SALE: 'erp.sales.dispatch',
   GET_SALE_RECEIPT: 'erp.sales.receipt',
   ANALYTICS_SUMMARY: 'erp.analytics.summary',
   ANALYTICS_SALES_OVER_TIME: 'erp.analytics.sales-over-time',

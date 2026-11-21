@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Inject,
   Param,
   ParseUUIDPipe,
@@ -30,6 +32,7 @@ import {
   PAYMENTS_PATTERNS,
   PAYMENTS_SERVICE,
   SaleIdMessage,
+  SaleTransitionMessage,
 } from '@app/contracts';
 import type {
   AuthUser,
@@ -47,6 +50,7 @@ import {
 } from './dto/receipt-response.dto';
 import {
   InsufficientStockResponseDto,
+  InvalidSaleStateResponseDto,
   SalePageResponseDto,
   SaleResponseDto,
 } from './dto/sale-response.dto';
@@ -109,6 +113,55 @@ export class SalesController {
       this.erpClient,
       ERP_PATTERNS.GET_SALE,
       { id },
+    );
+  }
+
+  /**
+   * Cancel an Ordered sale from the point of sale and return its stock
+   * (RN-09.1, RN-11). A paid sale cannot be cancelled here: that would need a
+   * refund in Mercado Pago. The history step records the acting user (RN-10).
+   */
+  @Post(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: SaleResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid id' })
+  @ApiNotFoundResponse({ description: 'Sale not found' })
+  @ApiConflictResponse({
+    type: InvalidSaleStateResponseDto,
+    description: 'The sale is not Ordered, code INVALID_SALE_STATE',
+  })
+  cancel(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return sendRpc<SaleResponseDto, SaleTransitionMessage>(
+      this.erpClient,
+      ERP_PATTERNS.CANCEL_SALE_BY_USER,
+      { id, userId: user.userId },
+    );
+  }
+
+  /**
+   * Mark a Paid sale as Dispatched (RN-09). From then on it can no longer be
+   * cancelled (RN-09.1). The history step records the acting user (RN-10).
+   */
+  @Post(':id/dispatch')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: SaleResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid id' })
+  @ApiNotFoundResponse({ description: 'Sale not found' })
+  @ApiConflictResponse({
+    type: InvalidSaleStateResponseDto,
+    description: 'The sale is not Paid, code INVALID_SALE_STATE',
+  })
+  dispatch(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return sendRpc<SaleResponseDto, SaleTransitionMessage>(
+      this.erpClient,
+      ERP_PATTERNS.DISPATCH_SALE,
+      { id, userId: user.userId },
     );
   }
 

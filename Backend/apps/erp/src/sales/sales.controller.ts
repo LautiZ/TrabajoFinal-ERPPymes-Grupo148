@@ -5,6 +5,7 @@ import {
   ERP_PATTERNS,
   ListSalesDto,
   SaleIdMessage,
+  SaleTransitionMessage,
 } from '@app/contracts';
 import { SalesService } from './sales.service';
 
@@ -40,5 +41,15 @@ export class SalesController {
   @MessagePattern(ERP_PATTERNS.CANCEL_SALE)
   cancel(@Payload() { id }: SaleIdMessage) {
     return this.salesService.cancel(id);
+  }
+
+  @MessagePattern(ERP_PATTERNS.CANCEL_SALE_BY_USER)
+  cancelByUser(@Payload() message: SaleTransitionMessage) {
+    return this.salesService.cancelByUser(message);
+  }
+
+  @MessagePattern(ERP_PATTERNS.DISPATCH_SALE)
+  dispatch(@Payload() message: SaleTransitionMessage) {
+    return this.salesService.dispatch(message);
   }
 }

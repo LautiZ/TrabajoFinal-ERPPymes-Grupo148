@@ -1,6 +1,11 @@
 import { RpcException } from '@nestjs/microservices';
 import { Test } from '@nestjs/testing';
-import { SALE_CANCELLED, SALE_NOT_PAID, type SaleView } from '@app/contracts';
+import {
+  INVALID_SALE_STATE,
+  SALE_CANCELLED,
+  SALE_NOT_PAID,
+  type SaleView,
+} from '@app/contracts';
 import { Prisma } from '../generated/prisma/client';
 import { InsufficientStockError, SaleTotalTooLargeError } from './sale-errors';
 import { SalesRepository } from './sales.repository';
@@ -35,6 +40,7 @@ describe('SalesService', () => {
     findById: jest.fn(),
     markPaid: jest.fn(),
     cancelUnpaid: jest.fn(),
+    markDispatched: jest.fn(),
     findOrderedOlderThan: jest.fn(),
   };
 
@@ -253,6 +259,74 @@ describe('SalesService', () => {
       expect(await errorOf(service.cancel('sale-x'))).toMatchObject({
         status: 404,
       });
+    });
+  });
+
+  describe('cancelByUser', () => {
+    const cancelled = { id: 'sale-1', currentState: 'Cancelled' } as SaleView;
+
+    it('cancels an Ordered sale under the user who asked (RN-10)', async () => {
+      sales.cancelUnpaid.mockResolvedValue(true);
+      sales.findById.mockResolvedValue(cancelled);
+
+      expect(await service.cancelByUser({ id: 'sale-1', userId })).toBe(
+        cancelled,
+      );
+      expect(sales.cancelUnpaid).toHaveBeenCalledWith('sale-1', userId);
+    });
+
+    it.each(['Paid', 'Dispatched', 'Cancelled'] as const)(
+      'answers 409 INVALID_SALE_STATE for a %s sale',
+      async (currentState) => {
+        sales.cancelUnpaid.mockResolvedValue(false);
+        sales.findById.mockResolvedValue({ id: 'sale-1', currentState });
+
+        expect(
+          await errorOf(service.cancelByUser({ id: 'sale-1', userId })),
+        ).toMatchObject({ status: 409, code: INVALID_SALE_STATE });
+      },
+    );
+
+    it('answers 404 for an unknown sale', async () => {
+      sales.cancelUnpaid.mockResolvedValue(false);
+      sales.findById.mockResolvedValue(null);
+
+      expect(
+        await errorOf(service.cancelByUser({ id: 'sale-x', userId })),
+      ).toMatchObject({ status: 404 });
+    });
+  });
+
+  describe('dispatch', () => {
+    const dispatched = { id: 'sale-1', currentState: 'Dispatched' } as SaleView;
+
+    it('moves a Paid sale to Dispatched under the user who asked', async () => {
+      sales.markDispatched.mockResolvedValue(true);
+      sales.findById.mockResolvedValue(dispatched);
+
+      expect(await service.dispatch({ id: 'sale-1', userId })).toBe(dispatched);
+      expect(sales.markDispatched).toHaveBeenCalledWith('sale-1', userId);
+    });
+
+    it.each(['Ordered', 'Dispatched', 'Cancelled'] as const)(
+      'answers 409 INVALID_SALE_STATE for a %s sale',
+      async (currentState) => {
+        sales.markDispatched.mockResolvedValue(false);
+        sales.findById.mockResolvedValue({ id: 'sale-1', currentState });
+
+        expect(
+          await errorOf(service.dispatch({ id: 'sale-1', userId })),
+        ).toMatchObject({ status: 409, code: INVALID_SALE_STATE });
+      },
+    );
+
+    it('answers 404 for an unknown sale', async () => {
+      sales.markDispatched.mockResolvedValue(false);
+      sales.findById.mockResolvedValue(null);
+
+      expect(
+        await errorOf(service.dispatch({ id: 'sale-x', userId })),
+      ).toMatchObject({ status: 404 });
     });
   });
 

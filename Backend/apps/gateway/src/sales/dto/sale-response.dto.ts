@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   INSUFFICIENT_STOCK,
+  INVALID_SALE_STATE,
   SALE_STATES,
   type PaginatedResponse,
   type SaleHistoryView,
@@ -81,4 +82,13 @@ export class InsufficientStockResponseDto {
   code!: typeof INSUFFICIENT_STOCK;
   /** Every item that failed; nothing was written */
   items!: StockConflictDto[];
+}
+
+export class InvalidSaleStateResponseDto {
+  /** @example 409 */
+  statusCode!: number;
+  /** @example Only Paid sales can be dispatched (current state: Ordered) */
+  message!: string;
+  @ApiProperty({ enum: [INVALID_SALE_STATE] })
+  code!: typeof INVALID_SALE_STATE;
 }

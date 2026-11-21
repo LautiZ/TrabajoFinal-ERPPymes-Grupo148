@@ -394,6 +394,34 @@
                 "description": "Receipt of a paid sale (TES-76): unique correlative number, date, seller, items with price and subtotal, total and the Mercado Pago payment reference. No es factura fiscal. Cualquier rol. 409 si la venta no está pagada (Ordered o Cancelled), 404 si no existe. seller/payment pueden venir null."
               },
               "response": []
+            },
+            {
+              "name": "Cancel sale",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/sales/{{saleId}}/cancel",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "sales", "{{saleId}}", "cancel"]
+                },
+                "description": "Cancela una venta en Ordered y devuelve su stock (RN-09.1, RN-11). Cualquier rol; el historial registra al usuario (RN-10). 409 INVALID_SALE_STATE si no está en Ordered (una venta pagada requeriría reembolso), 404 si no existe."
+              },
+              "response": []
+            },
+            {
+              "name": "Dispatch sale",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/sales/{{saleId}}/dispatch",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "sales", "{{saleId}}", "dispatch"]
+                },
+                "description": "Pasa una venta de Paid a Dispatched (RN-09); desde ahí ya no se puede cancelar (RN-09.1). Cualquier rol; el historial registra al usuario (RN-10). 409 INVALID_SALE_STATE si no está en Paid, 404 si no existe."
+              },
+              "response": []
             }
           ]
         },
