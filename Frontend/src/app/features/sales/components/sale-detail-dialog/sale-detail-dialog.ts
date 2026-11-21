@@ -1,12 +1,32 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { Clipboard } from '@angular/cdk/clipboard';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { Observable } from 'rxjs';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { PaymentState } from '../../models/payment.model';
 import { SALE_STATE_LABELS, SaleDetail } from '../../models/sale.model';
+import { PaymentsService } from '../../services/payments.service';
 import { SalesService } from '../../services/sales.service';
+
+const PAYMENT_STATE_LABELS: Record<PaymentState, string> = {
+  Pending: 'pendiente',
+  Paid: 'aprobado',
+  Rejected: 'rechazado',
+  Refunded: 'reembolsado',
+};
+
+/** Estado del link de pago dentro del popup. */
+type PaymentLink =
+  | { kind: 'loading' }
+  | { kind: 'none' }
+  | { kind: 'error' }
+  | { kind: 'closed'; state: PaymentState }
+  | { kind: 'open'; url: string };
 
 export interface SaleDetailDialogData {
   sale: SaleDetail;
@@ -19,7 +39,7 @@ export interface SaleDetailDialogData {
  */
 @Component({
   selector: 'app-sale-detail-dialog',
-  imports: [CurrencyPipe, DatePipe, DecimalPipe, MatButtonModule, MatDialogModule],
+  imports: [CurrencyPipe, DatePipe, DecimalPipe, MatButtonModule, MatDialogModule, MatIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .summary {
@@ -72,6 +92,23 @@ export interface SaleDetailDialogData {
       --mat-button-filled-container-color: var(--app-danger);
       --mat-button-filled-label-text-color: #2a0d0d;
     }
+    .payment-link {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+      background: var(--app-surface-3);
+      border: 1px solid var(--app-border);
+      border-radius: 0.5rem;
+    }
+    .payment-link__url {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font: var(--mat-sys-body-medium);
+    }
     .hint {
       margin: 1rem 0 0;
       color: var(--app-text-muted);
@@ -123,6 +160,46 @@ export interface SaleDetailDialogData {
         </tbody>
       </table>
 
+      <h3>Link de pago</h3>
+      @switch (paymentLink().kind) {
+        @case ('loading') {
+          <p class="muted">Buscando el link de pago...</p>
+        }
+        @case ('none') {
+          <p class="muted">Todavía no se generó un link de pago para esta venta.</p>
+        }
+        @case ('error') {
+          <p class="muted">No se pudo obtener el link de pago.</p>
+        }
+        @case ('closed') {
+          <p class="muted">El link ya no está disponible: el pago está {{ closedPaymentLabel() }}.</p>
+        }
+        @case ('open') {
+          <div class="payment-link">
+            <span class="payment-link__url" [title]="openUrl()">{{ openUrl() }}</span>
+            <button
+              mat-icon-button
+              type="button"
+              aria-label="Copiar link de pago"
+              title="Copiar link de pago"
+              (click)="copyLink()"
+            >
+              <mat-icon fontSet="material-symbols-outlined">content_copy</mat-icon>
+            </button>
+            <a
+              mat-icon-button
+              [href]="openUrl()"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Abrir link de pago en una pestaña nueva"
+              title="Abrir link de pago"
+            >
+              <mat-icon fontSet="material-symbols-outlined">open_in_new</mat-icon>
+            </a>
+          </div>
+        }
+      }
+
       <h3>Historial de estados</h3>
       <ol class="history">
         @for (step of sale().history; track step.state) {
@@ -163,11 +240,60 @@ export class SaleDetailDialog {
   private readonly dialogRef = inject<MatDialogRef<SaleDetailDialog, SaleDetail>>(MatDialogRef);
   private readonly salesService = inject(SalesService);
   private readonly notify = inject(NotificationService);
+  private readonly payments = inject(PaymentsService);
+  private readonly clipboard = inject(Clipboard);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly stateLabels = SALE_STATE_LABELS;
   protected readonly sale = signal(inject<SaleDetailDialogData>(MAT_DIALOG_DATA).sale);
   protected readonly saving = signal(false);
+  protected readonly paymentLink = signal<PaymentLink>({ kind: 'loading' });
   private changed = false;
+
+  constructor() {
+    this.payments
+      .getPaymentBySale(this.sale().id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (payment) => this.paymentLink.set(this.toPaymentLink(payment)),
+        error: () => this.paymentLink.set({ kind: 'error' }),
+      });
+  }
+
+  protected openUrl(): string {
+    const link = this.paymentLink();
+    return link.kind === 'open' ? link.url : '';
+  }
+
+  protected closedPaymentLabel(): string {
+    const link = this.paymentLink();
+    return link.kind === 'closed' ? PAYMENT_STATE_LABELS[link.state] : '';
+  }
+
+  protected copyLink(): void {
+    if (this.clipboard.copy(this.openUrl())) {
+      this.notify.success('Link de pago copiado al portapapeles.');
+    } else {
+      this.notify.error('No se pudo copiar el link.');
+    }
+  }
+
+  private toPaymentLink(
+    payment: { state: PaymentState; checkoutUrl: string | null } | null,
+  ): PaymentLink {
+    if (!payment) {
+      return { kind: 'none' };
+    }
+    if (!payment.checkoutUrl) {
+      return { kind: 'closed', state: payment.state };
+    }
+    try {
+      // Solo se muestra si es https y de Mercado Pago
+      return { kind: 'open', url: this.payments.validCheckoutUrl(payment.checkoutUrl) };
+    } catch {
+      return { kind: 'error' };
+    }
+  }
 
   protected cancelSale(): void {
     this.apply(
