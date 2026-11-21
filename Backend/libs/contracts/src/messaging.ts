@@ -33,6 +33,7 @@ export const ERP_PATTERNS = {
   CANCEL_SALE_BY_USER: 'erp.sales.cancel-by-user',
   DISPATCH_SALE: 'erp.sales.dispatch',
   GET_SALE_RECEIPT: 'erp.sales.receipt',
+  LIST_STOCK_MOVEMENTS: 'erp.stock-movements.list',
   ANALYTICS_SUMMARY: 'erp.analytics.summary',
   ANALYTICS_SALES_OVER_TIME: 'erp.analytics.sales-over-time',
   ANALYTICS_TOP_PRODUCTS: 'erp.analytics.top-products',
