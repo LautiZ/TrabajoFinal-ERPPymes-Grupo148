@@ -1,9 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { Subject, of } from 'rxjs';
 import type { Mock } from 'vitest';
 import { AuthUser, UserRole } from '../../models/auth.model';
 import { AuthService } from '../../services/auth.service';
+import { Product } from '../../../features/inventory/models/product.model';
+import { InventoryService } from '../../../features/inventory/services/inventory.service';
+import { ConfirmDialog } from '../../../shared/components/confirm-dialog/confirm-dialog';
 import { Shell, initialsOf } from './shell';
 
 describe('Shell', () => {
@@ -11,6 +15,13 @@ describe('Shell', () => {
   let element: HTMLElement;
   let auth: { currentUser: () => AuthUser | null; hasRole: Mock; logout: Mock };
   let navigateByUrl: Mock;
+  let dialog: { open: Mock };
+  let confirmed: boolean;
+  const inventory = {
+    list: vi.fn(() =>
+      of({ data: [{ id: 'p1', name: 'Yerba', sku: 'ALM-002', price: 4200 } as Product] }),
+    ),
+  };
 
   async function create(role: UserRole, name = 'Ana Pérez'): Promise<void> {
     const user: AuthUser = { id: 'u1', email: 'ana@example.com', name, role };
@@ -19,9 +30,16 @@ describe('Shell', () => {
       hasRole: vi.fn((...roles: UserRole[]) => roles.includes(role)),
       logout: vi.fn(() => of(undefined)),
     };
+    confirmed = true;
+    dialog = { open: vi.fn(() => ({ afterClosed: () => of(confirmed) })) };
     await TestBed.configureTestingModule({
       imports: [Shell],
-      providers: [provideRouter([]), { provide: AuthService, useValue: auth }],
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: auth },
+        { provide: MatDialog, useValue: dialog },
+        { provide: InventoryService, useValue: inventory },
+      ],
     }).compileComponents();
     navigateByUrl = vi.fn(() => Promise.resolve(true));
     vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockImplementation(navigateByUrl as never);
@@ -124,8 +142,71 @@ describe('Shell', () => {
     });
   });
 
+  describe('búsqueda global', () => {
+    const searchInput = (): HTMLInputElement =>
+      element.querySelector('input[aria-label="Búsqueda global"]') as HTMLInputElement;
+    const resultsPanel = (): Element | null => element.querySelector('.search-results');
+    const pressEscape = (target: Element): void => {
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+    };
+
+    async function openResults(): Promise<void> {
+      vi.useFakeTimers();
+      await create('Employee');
+      searchInput().value = 'yerba';
+      searchInput().dispatchEvent(new Event('input'));
+      vi.advanceTimersByTime(250);
+      vi.useRealTimers();
+      fixture.detectChanges();
+    }
+
+    it('Escape en el campo de búsqueda cierra los resultados', async () => {
+      await openResults();
+      expect(resultsPanel()).not.toBeNull();
+
+      pressEscape(searchInput());
+
+      expect(resultsPanel()).toBeNull();
+    });
+
+    it('Escape sobre un resultado cierra los resultados', async () => {
+      await openResults();
+
+      pressEscape(element.querySelector('.search-results__item') as Element);
+
+      expect(resultsPanel()).toBeNull();
+    });
+  });
+
   describe('cerrar sesión', () => {
-    it('cierra la sesión y vuelve al login', async () => {
+    it('pide confirmación con un botón destructivo antes de cerrar la sesión', async () => {
+      await create('Employee');
+
+      logoutButton().click();
+
+      expect(dialog.open).toHaveBeenCalledWith(ConfirmDialog, {
+        data: {
+          title: 'Cerrar sesión',
+          message: '¿Estás seguro de cerrar la sesión?',
+          confirmText: 'Cerrar sesión',
+          cancelText: 'Cancelar',
+          destructive: true,
+        },
+      });
+    });
+
+    it('si se cancela la confirmación no cierra la sesión', async () => {
+      await create('Employee');
+      confirmed = false;
+
+      logoutButton().click();
+
+      expect(auth.logout).not.toHaveBeenCalled();
+      expect(navigateByUrl).not.toHaveBeenCalled();
+    });
+
+    it('al confirmar cierra la sesión y vuelve al login', async () => {
       await create('Employee');
 
       logoutButton().click();

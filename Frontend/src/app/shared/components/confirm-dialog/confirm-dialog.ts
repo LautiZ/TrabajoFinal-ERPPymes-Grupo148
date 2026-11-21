@@ -7,11 +7,14 @@ export interface ConfirmDialogData {
   message: string;
   confirmText?: string;
   cancelText?: string;
+  /** Paints the confirm button red for irreversible or sensitive actions. */
+  destructive?: boolean;
 }
 
 @Component({
   selector: 'app-confirm-dialog',
   imports: [MatDialogModule, MatButtonModule],
+  host: { '[class.confirm-dialog--danger]': 'data.destructive' },
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
     <mat-dialog-content>
@@ -21,10 +24,28 @@ export interface ConfirmDialogData {
       <button mat-button (click)="onCancel()">
         {{ data.cancelText || 'Cancelar' }}
       </button>
-      <button mat-flat-button color="primary" (click)="onConfirm()">
+      <button
+        mat-flat-button
+        color="primary"
+        [class.confirm-dialog__confirm--danger]="data.destructive"
+        (click)="onConfirm()"
+      >
         {{ data.confirmText || 'Aceptar' }}
       </button>
     </mat-dialog-actions>
+  `,
+  styles: `
+    /* The host fills the dialog surface, so its border frames the whole popup. */
+    :host(.confirm-dialog--danger) {
+      display: block;
+      border: 1px solid color-mix(in srgb, var(--app-danger) 45%, transparent);
+      border-radius: inherit;
+    }
+
+    .confirm-dialog__confirm--danger {
+      --mat-sys-primary: var(--app-danger);
+      --mat-sys-on-primary: var(--app-bg);
+    }
   `,
 })
 export class ConfirmDialog {

@@ -2,7 +2,7 @@
   <aside class="sidebar" [class.sidebar--open]="navOpen()" aria-label="Navegación principal">
     <a class="brand" routerLink="/dashboard" (click)="closeNav()">
       <span class="brand__mark" aria-hidden="true">
-        <mat-icon fontSet="material-symbols-outlined">hub</mat-icon>
+        <mat-icon fontSet="material-symbols-outlined">dashboard_2_gear</mat-icon>
       </span>
       <span class="brand__text">
         <strong>ERP Pymes</strong>
@@ -50,58 +50,60 @@
         <mat-icon fontSet="material-symbols-outlined">menu</mat-icon>
       </button>
 
-      <div class="search-box" (keydown.escape)="closeResults()">
-  <label class="search">
-    <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">search</mat-icon>
-    <input
-      type="search"
-      placeholder="Buscar productos o SKU…"
-      aria-label="Búsqueda global"
-      autocomplete="off"
-      [formControl]="searchControl"
-      (focus)="openIfHasQuery()"
-    />
-    @if (searchControl.value) {
-    <button
-      type="button"
-      class="search__clear"
-      aria-label="Limpiar búsqueda"
-      (click)="clearSearch()"
-    >
-      <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">close</mat-icon>
-    </button>
-    }
-  </label>
+      <div class="search-box">
+        <label class="search">
+          <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">search</mat-icon>
+          <input
+            type="search"
+            placeholder="Buscar productos o SKU…"
+            aria-label="Búsqueda global"
+            autocomplete="off"
+            [formControl]="searchControl"
+            (focus)="openIfHasQuery()"
+            (keydown.escape)="closeResults()"
+          />
+          @if (searchControl.value) {
+          <button
+            type="button"
+            class="search__clear"
+            aria-label="Limpiar búsqueda"
+            (click)="clearSearch()"
+            (keydown.escape)="closeResults()"
+          >
+            <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">close</mat-icon>
+          </button>
+          }
+        </label>
 
-  @if (dropdownOpen()) {
-  <div class="search-results" role="listbox" aria-label="Resultados de búsqueda">
-    @if (searching()) {
-    <div class="search-results__state">Buscando…</div>
-    } @else if (searchError()) {
-    <div class="search-results__state">No se pudo buscar en este momento.</div>
-    } @else if (results().length === 0) {
-    <div class="search-results__state">Sin coincidencias para "{{ currentQuery() }}".</div>
-    } @else {
-    <div class="search-results__group">Productos</div>
-    @for (product of results(); track product.id) {
-    <button
-      type="button"
-      class="search-results__item"
-      (click)="selectProduct(product)"
-    >
-      <span class="search-results__main">
-        <strong>{{ product.name }}</strong>
-        <span class="search-results__sku">{{ product.sku }}</span>
-      </span>
-      <span class="search-results__meta">
-        {{ product.price | currency: 'ARS' : 'symbol-narrow' }}
-      </span>
-    </button>
-    }
-    }
-  </div>
-  }
-</div>
+        @if (dropdownOpen()) {
+        <div class="search-results" role="listbox" aria-label="Resultados de búsqueda">
+          @if (searching()) {
+          <div class="search-results__state">Buscando…</div>
+          } @else if (searchError()) {
+          <div class="search-results__state">No se pudo buscar en este momento.</div>
+          } @else if (results().length === 0) {
+          <div class="search-results__state">Sin coincidencias para "{{ currentQuery() }}".</div>
+          } @else {
+          <div class="search-results__group">Productos</div>
+          @for (product of results(); track product.id) {
+          <button
+            type="button"
+            class="search-results__item"
+            (click)="selectProduct(product)"
+            (keydown.escape)="closeResults()"
+          >
+            <span class="search-results__main">
+              <strong>{{ product.name }}</strong>
+              <span class="search-results__sku">{{ product.sku }}</span>
+            </span>
+            <span class="search-results__meta">
+              {{ product.price | currency: 'ARS' : 'symbol-narrow' }}
+            </span>
+          </button>
+          } }
+        </div>
+        }
+      </div>
 
       <div class="topbar__actions">
         @if (canCreateUsers()) {
@@ -128,7 +130,7 @@
           class="user__logout"
           aria-label="Cerrar sesión"
           [disabled]="loggingOut()"
-          (click)="logout()"
+          (click)="confirmLogout()"
         >
           <mat-icon fontSet="material-symbols-outlined">logout</mat-icon>
         </button>
