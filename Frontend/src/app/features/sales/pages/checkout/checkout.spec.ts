@@ -93,6 +93,10 @@ describe('Checkout', () => {
     expect(root().textContent).toContain('Mercado Pago');
   });
 
+  it('el botón de cobro dice "Generar pago"', () => {
+    expect(button().textContent?.trim()).toBe('Generar pago');
+  });
+
   it('con el carrito vacío no permite confirmar ni llama al backend', () => {
     cart.clear();
     fixture.detectChanges();
