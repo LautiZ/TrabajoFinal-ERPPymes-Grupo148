@@ -1,0 +1,40 @@
+<main class="thanks" [class.thanks--celebrate]="celebrate()">
+  @if (celebrate()) {
+  <div class="confetti" aria-hidden="true">
+    @for (piece of confetti; track piece) {
+    <span></span>
+    }
+  </div>
+  }
+
+  <section class="thanks__card app-card" aria-labelledby="thanks-title">
+    <span class="thanks__icon thanks__icon--{{ view().tone }}" aria-hidden="true">
+      <mat-icon fontSet="material-symbols-outlined">{{ view().icon }}</mat-icon>
+    </span>
+    <h1 id="thanks-title">{{ view().title }}</h1>
+    <p class="thanks__message">{{ view().message }}</p>
+
+    @if (purchase(); as detail) {
+    <div class="thanks__detail">
+      <h2>Detalle de su compra</h2>
+      <ul>
+        @for (item of detail.items; track item.name) {
+        <li>
+          <span class="thanks__qty">{{ item.quantity }} {{ unitSymbols[item.unit] }}</span>
+          <span class="thanks__name">{{ item.name }}</span>
+        </li>
+        }
+      </ul>
+      <p class="thanks__total">
+        <span>Total</span>
+        <strong>{{ detail.total | currency: 'ARS' : 'symbol-narrow' }}</strong>
+      </p>
+    </div>
+    } @if (celebrate()) {
+    <p class="thanks__again">
+      <mat-icon fontSet="material-symbols-outlined" aria-hidden="true">favorite</mat-icon>
+      Te esperamos nuevamente
+    </p>
+    }
+  </section>
+</main>

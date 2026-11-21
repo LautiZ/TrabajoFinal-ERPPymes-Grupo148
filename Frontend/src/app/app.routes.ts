@@ -8,10 +8,13 @@ export const routes: Routes = [
     pathMatch: 'full',
   },
   {
-    // Mercado Pago devuelve al comprador a /payments/success|failure|pending (URLs que arma el backend).
-    // Se reenvía a la pantalla de resultado del módulo de ventas conservando los parámetros de retorno.
+    // Mercado Pago devuelve al comprador a /payments/success|failure|pending (URLs que arma el
+    // backend). El comprador no tiene sesión: es una pantalla pública y solo informativa.
+    // El estado real del pago lo ve el comercio en /sales/payment/:result.
     path: 'payments/:result',
-    redirectTo: 'sales/payment/:result',
+    title: 'Gracias por su compra',
+    loadComponent: () =>
+      import('./features/public/pages/thank-you/thank-you').then((m) => m.ThankYou),
   },
   {
     path: 'auth',

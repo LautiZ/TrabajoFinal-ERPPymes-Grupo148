@@ -1,7 +1,7 @@
 <app-page-header
   eyebrow="Ventas & Pagos"
   title="Cobrar venta"
-  subtitle="Revisá la orden y confirmá el cobro."
+  subtitle="Revisá la orden y generá el link de pago para el cliente."
 />
 
 <section class="checkout">
@@ -12,6 +12,44 @@
   </div>
   } @else {
   <div class="checkout__layout">
+    @if (paymentLink(); as link) {
+    <section class="checkout__link app-card" aria-labelledby="link-title">
+      <mat-icon class="checkout__link-icon" fontSet="material-symbols-outlined" aria-hidden="true"
+        >link</mat-icon
+      >
+      <h2 id="link-title">Pago generado</h2>
+      <p class="checkout__note">
+        Compartir link al cliente para que complete la transacción mediante Mercado Pago. Cuando el
+        mismo pague, el estado se actualiza solo.
+      </p>
+      <div class="checkout__link-row">
+        <input
+          #linkInput
+          class="checkout__link-input"
+          type="text"
+          readonly
+          aria-label="Link de pago"
+          [value]="link"
+          (focus)="linkInput.select()"
+        />
+        <button mat-flat-button type="button" class="checkout__copy" (click)="copyLink(link)">
+          <mat-icon fontSet="material-symbols-outlined"
+            >{{ copied() ? 'check' : 'content_copy' }}</mat-icon
+          >
+          {{ copied() ? 'Copiado' : 'Copiar link' }}
+        </button>
+      </div>
+      <div class="checkout__actions">
+        <button mat-button type="button" (click)="newSale()">Nueva venta</button>
+        <a
+          mat-stroked-button
+          routerLink="/sales/payment/pending"
+          [queryParams]="{ external_reference: saleId() }"
+          >Ver estado del pago</a
+        >
+      </div>
+    </section>
+    } @else {
     <form class="checkout__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <fieldset>
         <legend>Método de pago</legend>
@@ -21,19 +59,23 @@
       </fieldset>
 
       <p class="checkout__note">
-        Al confirmar se registra la venta y te llevamos al checkout de Mercado Pago. Cuando
-        termines, volvés acá y se muestra el estado real del pago.
+        Al generar el pago se registra la venta y se crea un link de Mercado Pago para que el
+        cliente pague desde su dispositivo.
       </p>
 
       <div class="checkout__actions">
         <a mat-button routerLink="/sales">Volver al carrito</a>
-        <button mat-flat-button type="submit" [disabled]="!canSubmit()">
+        <button mat-flat-button type="submit" class="checkout__submit" [disabled]="!canSubmit()">
           @if (submitting()) {
-          <mat-progress-spinner mode="indeterminate" diameter="20" />
-          Procesando... } @else { Confirmar y pagar }
+          <span class="checkout__submit-busy">
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+            Procesando...
+          </span>
+          } @else { Generar pago }
         </button>
       </div>
     </form>
+    }
 
     <aside class="checkout__summary" aria-labelledby="summary-title">
       <h2 id="summary-title">Resumen de la orden</h2>

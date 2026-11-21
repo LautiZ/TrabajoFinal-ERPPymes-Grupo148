@@ -4,10 +4,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
 import { Observable, map, of, switchMap, tap, throwError } from 'rxjs';
+import { ClipboardService } from '../../../../core/services/clipboard.service';
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import {
@@ -21,6 +23,7 @@ import { StockConflict } from '../../models/stock-conflict.model';
 import { UNIT_LABELS } from '../../models/product.model';
 import { CartService, lineTotal } from '../../services/cart.service';
 import { PaymentsService } from '../../services/payments.service';
+import { PurchaseSnapshotService } from '../../services/purchase-snapshot.service';
 import { SalesService } from '../../services/sales.service';
 import { StockCheckService } from '../../services/stock-check.service';
 import { isSaleNotPayable, paymentErrorMessage } from '../../utils/payment-errors';
@@ -40,6 +43,7 @@ class StockConflictError extends Error {
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
+    MatIconModule,
     MatRadioModule,
     MatProgressSpinnerModule,
     PageHeader,
@@ -54,6 +58,8 @@ export class Checkout {
   private readonly payments = inject(PaymentsService);
   private readonly stock = inject(StockCheckService);
   private readonly notify = inject(NotificationService);
+  private readonly clipboard = inject(ClipboardService);
+  private readonly purchases = inject(PurchaseSnapshotService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -62,6 +68,13 @@ export class Checkout {
   protected readonly unitLabels = UNIT_LABELS;
   protected readonly lineTotal = lineTotal;
   protected readonly submitting = signal(false);
+  /** Link de Mercado Pago ya generado: el cliente lo abre y paga desde su propio dispositivo. */
+  protected readonly paymentLink = signal<string | null>(null);
+  /** Pasa a `true` un instante después de copiar el link, para confirmarlo en el botón. */
+  protected readonly copied = signal(false);
+  /** Id de la venta del pago generado (para consultar su estado). */
+  protected readonly saleId = signal<string | null>(null);
+  private copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** Venta ya creada en este checkout: un reintento de pago no debe duplicarla. */
   private pendingSale: Sale | null = null;
@@ -70,6 +83,10 @@ export class Checkout {
   protected readonly form = this.fb.group({
     paymentMethod: this.fb.control<PaymentMethod>('mercadopago', Validators.required),
   });
+
+  constructor() {
+    this.destroyRef.onDestroy(() => clearTimeout(this.copiedTimer));
+  }
 
   protected canSubmit(): boolean {
     return !this.cart.isEmpty() && !this.submitting();
@@ -101,8 +118,7 @@ export class Checkout {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        // Se mantiene `submitting` activo: la página se abandona al redirigir a Mercado Pago.
-        next: (checkoutUrl) => this.redirect(checkoutUrl),
+        next: (checkoutUrl) => this.showLink(checkoutUrl),
         error: (error: unknown) => this.handleError(error),
       });
   }
@@ -123,12 +139,48 @@ export class Checkout {
     return this.payments.createPayment(sale.id).pipe(map((payment) => payment.checkoutUrl));
   }
 
-  private redirect(checkoutUrl: string | null): void {
+  /** Muestra el link para que el cliente pague; no se redirige a Mercado Pago desde acá. */
+  private showLink(checkoutUrl: string | null): void {
     try {
-      this.payments.redirectToCheckout(checkoutUrl);
+      this.paymentLink.set(this.payments.validCheckoutUrl(checkoutUrl));
+      this.saleId.set(this.pendingSale?.id ?? null);
+      this.rememberPurchase();
+      this.submitting.set(false);
     } catch (error) {
       this.handleError(error);
     }
+  }
+
+  /** Guarda el detalle para la pantalla pública "Gracias por su compra" (mismo navegador). */
+  private rememberPurchase(): void {
+    const sale = this.pendingSale;
+    if (!sale) {
+      return;
+    }
+    this.purchases.save({
+      saleId: sale.id,
+      items: this.cart.items().map((i) => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+      total: sale.total || this.cart.total(),
+      createdAt: Date.now(),
+    });
+  }
+
+  protected async copyLink(link: string): Promise<void> {
+    if (await this.clipboard.copy(link)) {
+      this.notify.success('Link de pago copiado al portapapeles.');
+      this.copied.set(true);
+      clearTimeout(this.copiedTimer);
+      this.copiedTimer = setTimeout(() => this.copied.set(false), 2500);
+    } else {
+      this.notify.error('No se pudo copiar. Seleccioná el link y copialo manualmente.');
+    }
+  }
+
+  /** La venta ya está registrada: se limpia el carrito y se vuelve al punto de venta. */
+  protected newSale(): void {
+    this.cart.clear();
+    this.payments.clearPendingSale();
+    void this.router.navigate(['/sales']);
   }
 
   private handleError(error: unknown): void {

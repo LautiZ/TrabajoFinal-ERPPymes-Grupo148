@@ -1,7 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import type { Mock } from 'vitest';
 import { API_URL } from '../../../core/services/api.service';
 import { Payment } from '../models/payment.model';
 import { createMemoryStorage } from '../testing/factories';
@@ -24,7 +23,6 @@ describe('PaymentsService', () => {
   let service: PaymentsService;
   let http: HttpTestingController;
   let storage: Storage;
-  let navigate: Mock<(url: string) => void>;
 
   beforeEach(() => {
     storage = createMemoryStorage();
@@ -38,8 +36,6 @@ describe('PaymentsService', () => {
     });
     service = TestBed.inject(PaymentsService);
     http = TestBed.inject(HttpTestingController);
-    navigate = vi.fn<(url: string) => void>();
-    (service as unknown as { navigate: (url: string) => void }).navigate = navigate;
   });
 
   afterEach(() => http.verify());
@@ -96,31 +92,28 @@ describe('PaymentsService', () => {
     });
   });
 
-  describe('redirectToCheckout', () => {
-    it('redirige solo a dominios https de Mercado Pago', () => {
-      service.redirectToCheckout(CHECKOUT);
-      expect(navigate).toHaveBeenCalledTimes(1);
+  describe('validCheckoutUrl', () => {
+    it('acepta solo links https de dominios de Mercado Pago y los devuelve', () => {
+      expect(service.validCheckoutUrl(CHECKOUT)).toBe(CHECKOUT);
 
-      expect(() => service.redirectToCheckout('https://evil.example.com/pay')).toThrow();
-      expect(() => service.redirectToCheckout('https://mercadopago.com.evil.com/pay')).toThrow();
-      expect(() => service.redirectToCheckout('http://www.mercadopago.com/pay')).toThrow();
-      expect(() => service.redirectToCheckout('javascript:alert(1)')).toThrow();
-      expect(() => service.redirectToCheckout('no es una url')).toThrow();
-      expect(navigate).toHaveBeenCalledTimes(1);
+      expect(() => service.validCheckoutUrl('https://evil.example.com/pay')).toThrow();
+      expect(() => service.validCheckoutUrl('https://mercadopago.com.evil.com/pay')).toThrow();
+      expect(() => service.validCheckoutUrl('http://www.mercadopago.com/pay')).toThrow();
+      expect(() => service.validCheckoutUrl('javascript:alert(1)')).toThrow();
+      expect(() => service.validCheckoutUrl('no es una url')).toThrow();
     });
 
     it('acepta subdominios de Mercado Pago (p. ej. el sandbox)', () => {
-      service.redirectToCheckout('https://sandbox.mercadopago.com.ar/checkout/v1/redirect');
-
-      expect(navigate).toHaveBeenCalledTimes(1);
+      expect(
+        service.validCheckoutUrl('https://sandbox.mercadopago.com.ar/checkout/v1/redirect'),
+      ).toBe('https://sandbox.mercadopago.com.ar/checkout/v1/redirect');
     });
 
-    it('sin URL de pago lanza un error claro', () => {
-      expect(() => service.redirectToCheckout(null)).toThrow(
+    it('sin link de pago lanza un error claro', () => {
+      expect(() => service.validCheckoutUrl(null)).toThrow(
         'El servidor no devolvió la URL de pago.',
       );
-      expect(() => service.redirectToCheckout('')).toThrow();
-      expect(navigate).not.toHaveBeenCalled();
+      expect(() => service.validCheckoutUrl('')).toThrow();
     });
   });
 
