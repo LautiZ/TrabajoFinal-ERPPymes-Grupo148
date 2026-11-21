@@ -23,6 +23,7 @@ import { StockConflict } from '../../models/stock-conflict.model';
 import { UNIT_LABELS } from '../../models/product.model';
 import { CartService, lineTotal } from '../../services/cart.service';
 import { PaymentsService } from '../../services/payments.service';
+import { PurchaseSnapshotService } from '../../services/purchase-snapshot.service';
 import { SalesService } from '../../services/sales.service';
 import { StockCheckService } from '../../services/stock-check.service';
 import { isSaleNotPayable, paymentErrorMessage } from '../../utils/payment-errors';
@@ -58,6 +59,7 @@ export class Checkout {
   private readonly stock = inject(StockCheckService);
   private readonly notify = inject(NotificationService);
   private readonly clipboard = inject(ClipboardService);
+  private readonly purchases = inject(PurchaseSnapshotService);
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -142,10 +144,25 @@ export class Checkout {
     try {
       this.paymentLink.set(this.payments.validCheckoutUrl(checkoutUrl));
       this.saleId.set(this.pendingSale?.id ?? null);
+      this.rememberPurchase();
       this.submitting.set(false);
     } catch (error) {
       this.handleError(error);
     }
+  }
+
+  /** Guarda el detalle para la pantalla pública "Gracias por su compra" (mismo navegador). */
+  private rememberPurchase(): void {
+    const sale = this.pendingSale;
+    if (!sale) {
+      return;
+    }
+    this.purchases.save({
+      saleId: sale.id,
+      items: this.cart.items().map((i) => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+      total: sale.total || this.cart.total(),
+      createdAt: Date.now(),
+    });
   }
 
   protected async copyLink(link: string): Promise<void> {

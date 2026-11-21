@@ -5,12 +5,12 @@ Se carga con lazy loading bajo `/sales` (`sales.routes.ts`).
 
 ## Rutas
 
-| Ruta                     | Pantalla                                                                  |
-| ------------------------ | ------------------------------------------------------------------------- |
-| `/sales`                 | POS: búsqueda de productos + carrito                                      |
-| `/sales/checkout`        | Resumen de la orden y confirmación                                        |
-| `/sales/payment/:result` | Retorno de Mercado Pago (`success`, `failure`, `pending`)                 |
-| `/payments/:result`      | Redirige a `/sales/payment/:result` (URLs de retorno que arma el backend) |
+| Ruta                     | Pantalla                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `/sales`                 | POS: búsqueda de productos + carrito                                                 |
+| `/sales/checkout`        | Resumen de la orden y confirmación                                                   |
+| `/sales/payment/:result` | Retorno de Mercado Pago (`success`, `failure`, `pending`)                            |
+| `/payments/:result`      | **Pública**: "Gracias por su compra" a la que vuelve el comprador desde Mercado Pago |
 
 ## Flujo de cobro
 
@@ -18,7 +18,7 @@ Se carga con lazy loading bajo `/sales` (`sales.routes.ts`).
 2. `POST /sales` con `{ items: [{ productId, quantity }] }`. El total **no se envía**: lo calcula el backend (RN-06).
 3. `POST /payments` con `{ saleId }` (el Gateway rechaza cualquier otro campo) → `Payment { id, saleId, amount, state, checkoutUrl, createdAt }`. El monto, el pagador y las URLs de retorno los resuelve el backend a partir de la venta.
 4. El checkout **no redirige**: muestra el `checkoutUrl` (solo dominios https de Mercado Pago) con un botón **Copiar link**, para que el cliente pague desde su dispositivo. "Ver estado del pago" abre la pantalla de resultado (con polling) y "Nueva venta" limpia el carrito. Si ya no se puede cobrar, llega `409 SALE_NOT_PAYABLE` y el checkout arma una venta nueva en el reintento.
-5. Mercado Pago vuelve a `/payments/:result?external_reference=<saleId>` (que redirige a `/sales/payment/:result`). La pantalla **no confía en la URL**: consulta `GET /sales/:id` y `GET /payments/sale/:saleId`, hace polling corto mientras esté pendiente y, solo al confirmarse el pago, vacía el carrito.
+5. Mercado Pago devuelve al **comprador** a `/payments/:result` (`success`, `failure`, `pending`): es una pantalla **pública** (sin sesión) de agradecimiento, solo informativa. Muestra el detalle (nombres y cantidades) únicamente si ese navegador lo guardó al generar el pago, porque el backend no tiene un endpoint público para consultar una venta. El **comercio** ve el estado real en `/sales/payment/:result` ("Ver estado del pago"). Esa pantalla **no confía en la URL**: consulta `GET /sales/:id` y `GET /payments/sale/:saleId`, hace polling corto mientras esté pendiente y, solo al confirmarse el pago, vacía el carrito.
 
 ## Contrato con el backend (Gateway, prefijo `/api`)
 

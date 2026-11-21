@@ -10,6 +10,7 @@ import { Payment } from '../../models/payment.model';
 import { Sale } from '../../models/sale.model';
 import { CART_STORAGE, CartService } from '../../services/cart.service';
 import { PaymentsService } from '../../services/payments.service';
+import { PurchaseSnapshotService } from '../../services/purchase-snapshot.service';
 import { SalesService } from '../../services/sales.service';
 import { StockCheckService } from '../../services/stock-check.service';
 import { createMemoryStorage, createProduct } from '../../testing/factories';
@@ -40,6 +41,7 @@ describe('Checkout', () => {
   let dialog: { open: Mock };
   let notify: { error: Mock; info: Mock; success: Mock };
   let clipboard: { copy: Mock };
+  let purchases: { save: Mock };
 
   const root = (): HTMLElement => fixture.nativeElement as HTMLElement;
   const submitForm = (): void => {
@@ -68,6 +70,7 @@ describe('Checkout', () => {
     dialog = { open: vi.fn(() => ({ afterClosed: () => of('review') })) };
     notify = { error: vi.fn(), info: vi.fn(), success: vi.fn() };
     clipboard = { copy: vi.fn(() => Promise.resolve(true)) };
+    purchases = { save: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [Checkout],
@@ -80,6 +83,7 @@ describe('Checkout', () => {
         { provide: MatDialog, useValue: dialog },
         { provide: NotificationService, useValue: notify },
         { provide: ClipboardService, useValue: clipboard },
+        { provide: PurchaseSnapshotService, useValue: purchases },
       ],
     }).compileComponents();
 
@@ -146,6 +150,18 @@ describe('Checkout', () => {
     expect((root().querySelector('.checkout__link-input') as HTMLInputElement).value).toBe(MP_URL);
     // Ya no hay formulario de cobro: el cliente paga desde el link.
     expect(root().querySelector('form')).toBeNull();
+  });
+
+  it('guarda el detalle de la compra (nombres y cantidades) para la pantalla "Gracias por su compra"', () => {
+    submitForm();
+
+    expect(purchases.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        saleId: 'sale-1',
+        total: 3000,
+        items: [{ name: 'Yerba 1kg', quantity: 2, unit: 'Unit' }],
+      }),
+    );
   });
 
   it('el botón "Copiar link" copia el link devuelto por el backend y lo confirma', async () => {
