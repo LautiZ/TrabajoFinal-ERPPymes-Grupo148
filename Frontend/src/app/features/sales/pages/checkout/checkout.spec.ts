@@ -147,6 +147,9 @@ describe('Checkout', () => {
     expect(payments.rememberPendingSale).toHaveBeenCalledWith('sale-1');
     expect(payments.createPayment).toHaveBeenCalledWith('sale-1');
     expect(linkPanel()?.textContent).toContain('Pago generado');
+    expect(linkPanel()?.textContent).toContain(
+      'Compartir link al cliente para que complete la transacción mediante Mercado Pago. Cuando el mismo pague, el estado se actualiza solo.',
+    );
     expect((root().querySelector('.checkout__link-input') as HTMLInputElement).value).toBe(MP_URL);
     // Ya no hay formulario de cobro: el cliente paga desde el link.
     expect(root().querySelector('form')).toBeNull();
