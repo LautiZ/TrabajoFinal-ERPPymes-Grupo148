@@ -13,8 +13,10 @@
 - Sebastian Bruselario
 
 
-## Link al Video
+## Link al Video y al Informe Final
 https://youtu.be/a9Q9bDU3UHo
+
+[Informe Final - ERP para PyMEs (Grupo 148)](./docs/Informe%20Final%20-%20ERP%20para%20PyMEs%20(Grupo%20148).pdf)
 
 ## Deploy
 
