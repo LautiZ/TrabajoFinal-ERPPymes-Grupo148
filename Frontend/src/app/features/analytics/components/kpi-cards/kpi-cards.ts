@@ -45,7 +45,10 @@ export class KpiCardsComponent {
   private readonly numberFormatter = new Intl.NumberFormat('es-AR', {
     maximumFractionDigits: 0,
   });
-
+  private readonly decimalFormatter = new Intl.NumberFormat('es-AR', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+  });
   private readonly percentFormatter = new Intl.NumberFormat('es-AR', {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
@@ -151,9 +154,11 @@ export class KpiCardsComponent {
     return this.currencyFormatter.format(value);
   }
 
-  formatNumber(value: number): string {
-    return this.numberFormatter.format(value);
-  }
+  formatNumber(value: number, decimals = 0): string {
+  return decimals > 0
+    ? this.decimalFormatter.format(value)
+    : this.numberFormatter.format(value);
+}
 
   private buildKpiCard(
     id: string,
