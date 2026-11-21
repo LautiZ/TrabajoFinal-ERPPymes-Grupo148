@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   INSUFFICIENT_STOCK,
+  INVALID_SALE_STATE,
   paginate,
   RECEIPT_POINT_OF_SALE,
   SALE_CANCELLED,
@@ -11,6 +12,7 @@ import {
   type SaleReceiptView,
   type SaleState,
   type SaleSummaryView,
+  type SaleTransitionMessage,
   type SaleView,
 } from '@app/contracts';
 import { rpcError } from '../common/rpc-error';
@@ -122,6 +124,23 @@ export class SalesService {
     return this.get(id);
   }
 
+  // Manual cancel from the point of sale: only an Ordered sale, so a paid
+  // one is never cancelled without refunding the money (RN-09.1, RN-11)
+  async cancelByUser({ id, userId }: SaleTransitionMessage): Promise<SaleView> {
+    const changed = await this.salesRepository.cancelUnpaid(id, userId);
+    const sale = await this.get(id);
+    if (!changed) throw invalidState('cancelled', 'Ordered', sale.currentState);
+    return sale;
+  }
+
+  // Manual dispatch from the point of sale: only a Paid sale (RN-09)
+  async dispatch({ id, userId }: SaleTransitionMessage): Promise<SaleView> {
+    const changed = await this.salesRepository.markDispatched(id, userId);
+    const sale = await this.get(id);
+    if (!changed) throw invalidState('dispatched', 'Paid', sale.currentState);
+    return sale;
+  }
+
   // Expiration job: unpaid sales past their payment window release their
   // stock. Each sale is its own transaction; a failure does not stop the rest.
   async cancelExpired(olderThanMinutes: number): Promise<number> {
@@ -164,3 +183,10 @@ export class SalesService {
     }
   }
 }
+
+const invalidState = (action: string, from: SaleState, current: SaleState) =>
+  rpcError(
+    409,
+    `Only ${from} sales can be ${action} (current state: ${current})`,
+    { code: INVALID_SALE_STATE },
+  );

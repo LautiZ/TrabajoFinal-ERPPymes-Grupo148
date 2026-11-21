@@ -35,6 +35,10 @@ export const SALE_CANCELLED = 'SALE_CANCELLED';
 // Error code on a 409 when a receipt is asked for a sale that is not paid
 export const SALE_NOT_PAID = 'SALE_NOT_PAID';
 
+// Error code on a 409 when a manual change (cancel, dispatch) does not apply
+// to the sale's current state
+export const INVALID_SALE_STATE = 'INVALID_SALE_STATE';
+
 // Point of sale prefix of every receipt number: 0001-00000123 (TES-76)
 export const RECEIPT_POINT_OF_SALE = '0001';
 
@@ -107,6 +111,15 @@ export class CreateSaleMessage {
 export class SaleIdMessage {
   @IsUUID()
   id!: string;
+}
+
+// A state change made by a user from the gateway; userId goes to the history (RN-10)
+export class SaleTransitionMessage {
+  @IsUUID()
+  id!: string;
+
+  @IsUUID()
+  userId!: string;
 }
 
 // Response shapes shared by the ERP MS (producer) and the gateway (docs)

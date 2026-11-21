@@ -31,6 +31,7 @@ import { LoadingSpinner } from '../../../../shared/components/loading-spinner/lo
 import { PageHeader } from '../../../../shared/components/page-header/page-header';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { CartView } from '../../components/cart-view/cart-view';
+import { SalesTable } from '../../components/sales-table/sales-table';
 import { CatalogProduct, UNIT_LABELS } from '../../models/product.model';
 import { CartService } from '../../services/cart.service';
 import { CatalogService } from '../../services/catalog.service';
@@ -50,6 +51,7 @@ const SEARCH_DEBOUNCE_MS = 250;
     LoadingSpinner,
     PageHeader,
     CartView,
+    SalesTable,
   ],
   selector: 'app-pos',
   styleUrl: './pos.scss',

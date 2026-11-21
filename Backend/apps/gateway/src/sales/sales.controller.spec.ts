@@ -1,6 +1,7 @@
 import { ClientProxy } from '@nestjs/microservices';
 import { of, throwError } from 'rxjs';
 import { AUTH_PATTERNS, ERP_PATTERNS, PAYMENTS_PATTERNS } from '@app/contracts';
+import type { AuthUser } from '@app/contracts';
 import { SalesController } from './sales.controller';
 
 const client = () => ({ send: jest.fn() });
@@ -82,5 +83,43 @@ describe('SalesController.receipt', () => {
     payments.send.mockReturnValue(throwError(() => down));
 
     await expect(controller.receipt('sale-1')).rejects.toBe(down);
+  });
+});
+
+describe('SalesController state changes', () => {
+  const erp = client();
+  const controller = new SalesController(
+    erp as unknown as ClientProxy,
+    client() as unknown as ClientProxy,
+    client() as unknown as ClientProxy,
+  );
+  const user = { userId: 'user-1', role: 'Employee' } as AuthUser;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    erp.send.mockReturnValue(of({ id: 'sale-1' }));
+  });
+
+  it('cancel sends the sale id and the acting user to the ERP', async () => {
+    await controller.cancel(user, 'sale-1');
+    expect(erp.send).toHaveBeenCalledWith(ERP_PATTERNS.CANCEL_SALE_BY_USER, {
+      id: 'sale-1',
+      userId: 'user-1',
+    });
+  });
+
+  it('dispatch sends the sale id and the acting user to the ERP', async () => {
+    await controller.dispatch(user, 'sale-1');
+    expect(erp.send).toHaveBeenCalledWith(ERP_PATTERNS.DISPATCH_SALE, {
+      id: 'sale-1',
+      userId: 'user-1',
+    });
+  });
+
+  it('propagates the ERP 409 for a sale in the wrong state', async () => {
+    const invalid = { status: 409, code: 'INVALID_SALE_STATE', message: 'x' };
+    erp.send.mockReturnValue(throwError(() => invalid));
+
+    await expect(controller.dispatch(user, 'sale-1')).rejects.toBe(invalid);
   });
 });

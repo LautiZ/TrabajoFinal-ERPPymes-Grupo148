@@ -235,9 +235,10 @@ export class SalesRepository {
    * The original Outcome movements are kept; each item gets an Income with
    * the sale id (RN-11). stock_movements.user_id is required, so the reversal
    * is recorded under the employee who registered the sale, while the history
-   * step has no user because the system made the change (RN-10).
+   * step has no user when the system made the change (RN-10), or the user
+   * who cancelled it from the point of sale.
    */
-  cancelUnpaid(id: string): Promise<boolean> {
+  cancelUnpaid(id: string, userId: string | null = null): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
       const { count } = await tx.sale.updateMany({
         where: { id, currentState: 'Ordered' },
@@ -276,8 +277,29 @@ export class SalesRepository {
               userId: sale.userId,
             })),
           },
-          history: { create: { saleState: 'Cancelled', userId: null } },
+          history: { create: { saleState: 'Cancelled', userId } },
         },
+      });
+      return true;
+    });
+  }
+
+  /**
+   * Moves a Paid sale to Dispatched (RN-09) with its history step. Like
+   * markPaid, the conditional update makes a repeated or concurrent call a
+   * no-op that returns false. No stock change: it was taken when the sale
+   * was created.
+   */
+  markDispatched(id: string, userId: string): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.sale.updateMany({
+        where: { id, currentState: 'Paid' },
+        data: { currentState: 'Dispatched' },
+      });
+      if (count === 0) return false;
+
+      await tx.saleHistory.create({
+        data: { saleId: id, saleState: 'Dispatched', userId },
       });
       return true;
     });

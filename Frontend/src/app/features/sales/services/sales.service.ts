@@ -2,7 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { CartItem } from '../models/cart.model';
-import { CreateSaleRequest, Sale, SaleState } from '../models/sale.model';
+import {
+  CreateSaleRequest,
+  Sale,
+  SaleDetail,
+  SalePage,
+  SaleState,
+} from '../models/sale.model';
 
 interface ApiSale {
   id: string;
@@ -28,6 +34,27 @@ export class SalesService {
 
   getSale(id: string): Observable<Sale> {
     return this.api.get<ApiSale>(`sales/${encodeURIComponent(id)}`).pipe(map(toSale));
+  }
+
+  /** Ventas más recientes primero. */
+  listSales(page: number, limit: number): Observable<SalePage> {
+    return this.api
+      .get<SalePage>('sales', { page, limit })
+      .pipe(map((res) => ({ ...res, data: res.data.map((s) => ({ ...s, total: Number(s.total) })) })));
+  }
+
+  getSaleDetail(id: string): Observable<SaleDetail> {
+    return this.api.get<SaleDetail>(`sales/${encodeURIComponent(id)}`);
+  }
+
+  /** Solo ventas en Ordered: devuelve el stock (RN-09.1, RN-11). */
+  cancelSale(id: string): Observable<SaleDetail> {
+    return this.api.post<SaleDetail>(`sales/${encodeURIComponent(id)}/cancel`, {});
+  }
+
+  /** Solo ventas en Paid (RN-09). */
+  dispatchSale(id: string): Observable<SaleDetail> {
+    return this.api.post<SaleDetail>(`sales/${encodeURIComponent(id)}/dispatch`, {});
   }
 }
 
