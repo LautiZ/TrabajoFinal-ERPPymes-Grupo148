@@ -300,6 +300,14 @@ describe('PaymentNotificationsService', () => {
     expect(payments.transition).not.toHaveBeenCalled();
   });
 
+  // Two webhooks for the same order can race: the guarded transition lets
+  // only one win, and the loser must still acknowledge normally
+  it('acknowledges quietly when a concurrent notification already moved the payment', async () => {
+    payments.transition.mockResolvedValue(false);
+
+    await expect(service.handle(notification)).resolves.toBeUndefined();
+  });
+
   it('never moves a paid payment back to rejected (late notification)', async () => {
     payments.findByOrderId.mockResolvedValue(payment({ paymentState: 'Paid' }));
     mercadoPago.getOrder.mockResolvedValue(order({ status: 'failed' }));

@@ -184,6 +184,16 @@ describe('MercadoPagoSdkClient', () => {
       expect((await client.getOrder('ORD01')).paymentId).toBe('PAY-OK');
     });
 
+    it('translates SDK errors to RPC errors', async () => {
+      mockOrderGet.mockRejectedValue(
+        new MPConnectionError(new Error('ETIMEDOUT')),
+      );
+
+      const error = await client.getOrder('ORD01').catch((e: unknown) => e);
+
+      expect(rpcStatus(error)).toBe(503);
+    });
+
     it('fills missing optional fields with neutral values', async () => {
       mockOrderGet.mockResolvedValue({ id: 'ORD01', status: 'created' });
 
@@ -229,6 +239,22 @@ describe('MercadoPagoSdkClient', () => {
       const forged = signed('ord01abc');
       forged.xSignature = 'ts=1763470000,v1=' + 'f'.repeat(64);
       expect(client.isAuthenticNotification(forged)).toBe(false);
+    });
+
+    // The body is untrusted: a valid signature of one order must not vouch
+    // for another one
+    it('rejects a signature that belongs to another order id', () => {
+      const other = signed('ord01abc');
+      expect(
+        client.isAuthenticNotification({ ...other, dataId: 'ORD99' }),
+      ).toBe(false);
+    });
+
+    it('rejects a signature bound to another request id', () => {
+      const other = signed('ord01abc');
+      expect(
+        client.isAuthenticNotification({ ...other, xRequestId: 'req-2' }),
+      ).toBe(false);
     });
 
     it('rejects a notification without signature', () => {
