@@ -70,6 +70,53 @@
   }
 }
 
+.checkout__link {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-title-large);
+  }
+}
+
+.checkout__link-icon {
+  align-self: flex-start;
+  color: var(--app-accent, var(--mat-sys-primary));
+}
+
+.checkout__link-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+
+  @media (max-width: 560px) {
+    flex-direction: column;
+  }
+}
+
+.checkout__link-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0.8rem;
+  font: var(--mat-sys-body-medium);
+  color: var(--app-text);
+  background: var(--app-bg, transparent);
+  border: 1px solid var(--app-border-strong, var(--mat-sys-outline-variant));
+  border-radius: var(--app-radius-sm, 0.5rem);
+  text-overflow: ellipsis;
+
+  &:focus-visible {
+    outline: 2px solid var(--app-accent, var(--mat-sys-primary));
+    outline-offset: 1px;
+  }
+}
+
+.checkout__copy {
+  min-width: 9.5rem;
+}
+
 .checkout__summary {
   padding: 1rem;
   background: var(--mat-sys-surface-container-low);

@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { Subject, of, throwError } from 'rxjs';
 import type { Mock } from 'vitest';
 import { NotificationService } from '../../../../shared/services/notification.service';
+import { ClipboardService } from '../../../../core/services/clipboard.service';
 import { Payment } from '../../models/payment.model';
 import { Sale } from '../../models/sale.model';
 import { CART_STORAGE, CartService } from '../../services/cart.service';
@@ -31,18 +32,20 @@ describe('Checkout', () => {
   let sales: { createSale: Mock };
   let payments: {
     createPayment: Mock;
-    redirectToCheckout: Mock;
+    validCheckoutUrl: Mock;
     rememberPendingSale: Mock;
     clearPendingSale: Mock;
   };
   let stock: { verify: Mock; adjustToAvailable: Mock; withNames: Mock };
   let dialog: { open: Mock };
   let notify: { error: Mock; info: Mock; success: Mock };
+  let clipboard: { copy: Mock };
 
   const root = (): HTMLElement => fixture.nativeElement as HTMLElement;
   const submitForm = (): void => {
     (root().querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit'));
   };
+  const linkPanel = (): HTMLElement | null => root().querySelector('.checkout__link');
   const button = (): HTMLButtonElement =>
     root().querySelector('button[type=submit]') as HTMLButtonElement;
 
@@ -50,7 +53,10 @@ describe('Checkout', () => {
     sales = { createSale: vi.fn(() => of(SALE)) };
     payments = {
       createPayment: vi.fn(() => of(PAYMENT)),
-      redirectToCheckout: vi.fn(),
+      validCheckoutUrl: vi.fn((url: string | null) => {
+        if (!url) throw new Error('El servidor no devolvió la URL de pago.');
+        return url;
+      }),
       rememberPendingSale: vi.fn(),
       clearPendingSale: vi.fn(),
     };
@@ -61,6 +67,7 @@ describe('Checkout', () => {
     };
     dialog = { open: vi.fn(() => ({ afterClosed: () => of('review') })) };
     notify = { error: vi.fn(), info: vi.fn(), success: vi.fn() };
+    clipboard = { copy: vi.fn(() => Promise.resolve(true)) };
 
     await TestBed.configureTestingModule({
       imports: [Checkout],
@@ -72,6 +79,7 @@ describe('Checkout', () => {
         { provide: StockCheckService, useValue: stock },
         { provide: MatDialog, useValue: dialog },
         { provide: NotificationService, useValue: notify },
+        { provide: ClipboardService, useValue: clipboard },
       ],
     }).compileComponents();
 
@@ -85,6 +93,11 @@ describe('Checkout', () => {
     const text = root().textContent ?? '';
     expect(text).toContain('Yerba 1kg');
     expect(text).toContain('3,000.00');
+  });
+
+  it('explica que se genera un link para el cliente, no una redirección', () => {
+    expect(root().textContent).toContain('se crea un link de Mercado Pago');
+    expect(root().textContent).not.toContain('te llevamos');
   });
 
   it('no pide datos del cliente: el backend arma el cobro a partir de la venta', () => {
@@ -121,22 +134,70 @@ describe('Checkout', () => {
     expect(notify.error).toHaveBeenCalledWith('El carrito está vacío.');
   });
 
-  it('crea la venta, genera el pago solo con el id de la venta y redirige a Mercado Pago', () => {
+  it('crea la venta, genera el pago solo con el id de la venta y muestra el link (sin redirigir)', () => {
     submitForm();
+    fixture.detectChanges();
 
     expect(stock.verify).toHaveBeenCalled();
     expect(sales.createSale).toHaveBeenCalledWith(cart.items());
     expect(payments.rememberPendingSale).toHaveBeenCalledWith('sale-1');
     expect(payments.createPayment).toHaveBeenCalledWith('sale-1');
-    expect(payments.redirectToCheckout).toHaveBeenCalledWith(MP_URL);
+    expect(linkPanel()?.textContent).toContain('Pago generado');
+    expect((root().querySelector('.checkout__link-input') as HTMLInputElement).value).toBe(MP_URL);
+    // Ya no hay formulario de cobro: el cliente paga desde el link.
+    expect(root().querySelector('form')).toBeNull();
+  });
+
+  it('el botón "Copiar link" copia el link devuelto por el backend y lo confirma', async () => {
+    submitForm();
+    fixture.detectChanges();
+
+    (root().querySelector('.checkout__copy') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(clipboard.copy).toHaveBeenCalledWith(MP_URL);
+    expect(notify.success).toHaveBeenCalledWith('Link de pago copiado al portapapeles.');
+    expect(root().querySelector('.checkout__copy')?.textContent).toContain('Copiado');
+  });
+
+  it('si no se puede copiar, lo avisa y deja el link seleccionable', async () => {
+    clipboard.copy.mockResolvedValue(false);
+    submitForm();
+    fixture.detectChanges();
+
+    (root().querySelector('.checkout__copy') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(notify.error).toHaveBeenCalledWith(
+      'No se pudo copiar. Seleccioná el link y copialo manualmente.',
+    );
+    expect(root().querySelector('.checkout__link-input')).not.toBeNull();
+  });
+
+  it('"Ver estado del pago" lleva al resultado con la venta como referencia', () => {
+    submitForm();
+    fixture.detectChanges();
+
+    const link = root().querySelector('a[href^="/sales/payment/pending"]');
+    expect(link?.getAttribute('href')).toBe('/sales/payment/pending?external_reference=sale-1');
+  });
+
+  it('"Nueva venta" limpia el carrito y la venta en curso', () => {
+    submitForm();
+    fixture.detectChanges();
+
+    const newSale = Array.from(root().querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Nueva venta'),
+    ) as HTMLButtonElement;
+    newSale.click();
+
+    expect(cart.isEmpty()).toBe(true);
+    expect(payments.clearPendingSale).toHaveBeenCalled();
   });
 
   it('si el pago llega sin checkoutUrl, lo informa y no deja la pantalla bloqueada', () => {
     payments.createPayment.mockReturnValue(of({ ...PAYMENT, checkoutUrl: null }));
-    payments.redirectToCheckout.mockImplementation((url: string | null) => {
-      if (!url) throw new Error('El servidor no devolvió la URL de pago.');
-    });
-
     submitForm();
     fixture.detectChanges();
 
@@ -145,7 +206,7 @@ describe('Checkout', () => {
   });
 
   it('si la URL de pago no es válida no deja la pantalla bloqueada', () => {
-    payments.redirectToCheckout.mockImplementation(() => {
+    payments.validCheckoutUrl.mockImplementation(() => {
       throw new Error('La URL de pago recibida no pertenece a Mercado Pago.');
     });
 
@@ -168,7 +229,7 @@ describe('Checkout', () => {
 
       expect(dialog.open).toHaveBeenCalledTimes(1);
       expect(sales.createSale).not.toHaveBeenCalled();
-      expect(payments.redirectToCheckout).not.toHaveBeenCalled();
+      expect(linkPanel()).toBeNull();
     });
 
     it('si el backend rechaza por stock insuficiente (409) muestra los ítems en conflicto', () => {
@@ -217,13 +278,15 @@ describe('Checkout', () => {
       );
 
       submitForm();
-      expect(payments.redirectToCheckout).not.toHaveBeenCalled();
+      fixture.detectChanges();
+      expect(linkPanel()).toBeNull();
 
       submitForm();
+      fixture.detectChanges();
 
       expect(sales.createSale).toHaveBeenCalledTimes(1);
       expect(payments.createPayment).toHaveBeenCalledTimes(2);
-      expect(payments.redirectToCheckout).toHaveBeenCalledWith(MP_URL);
+      expect(linkPanel()).not.toBeNull();
     });
 
     it('si la venta ya no se puede cobrar (409 SALE_NOT_PAYABLE) lo explica y el reintento arma una venta nueva', () => {

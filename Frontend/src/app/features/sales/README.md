@@ -17,7 +17,7 @@ Se carga con lazy loading bajo `/sales` (`sales.routes.ts`).
 1. **Checkout** refresca el stock del carrito (`StockCheckService.verify`). Si algo ya no alcanza, muestra el diálogo de conflicto y no crea nada.
 2. `POST /sales` con `{ items: [{ productId, quantity }] }`. El total **no se envía**: lo calcula el backend (RN-06).
 3. `POST /payments` con `{ saleId }` (el Gateway rechaza cualquier otro campo) → `Payment { id, saleId, amount, state, checkoutUrl, createdAt }`. El monto, el pagador y las URLs de retorno los resuelve el backend a partir de la venta.
-4. Redirección al `checkoutUrl` (solo dominios https de Mercado Pago). Si ya no se puede cobrar, llega `409 SALE_NOT_PAYABLE` y el checkout arma una venta nueva en el reintento.
+4. El checkout **no redirige**: muestra el `checkoutUrl` (solo dominios https de Mercado Pago) con un botón **Copiar link**, para que el cliente pague desde su dispositivo. "Ver estado del pago" abre la pantalla de resultado (con polling) y "Nueva venta" limpia el carrito. Si ya no se puede cobrar, llega `409 SALE_NOT_PAYABLE` y el checkout arma una venta nueva en el reintento.
 5. Mercado Pago vuelve a `/payments/:result?external_reference=<saleId>` (que redirige a `/sales/payment/:result`). La pantalla **no confía en la URL**: consulta `GET /sales/:id` y `GET /payments/sale/:saleId`, hace polling corto mientras esté pendiente y, solo al confirmarse el pago, vacía el carrito.
 
 ## Contrato con el backend (Gateway, prefijo `/api`)

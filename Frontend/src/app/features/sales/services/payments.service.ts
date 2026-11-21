@@ -1,4 +1,3 @@
-import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of, throwError } from 'rxjs';
@@ -8,8 +7,8 @@ import { CART_STORAGE } from './cart.service';
 
 export const PENDING_SALE_KEY = 'erp.sales.pending-sale.v1';
 
-/** Solo se redirige a estos dominios (y sus subdominios), aunque el backend devuelva otra URL. */
-const ALLOWED_REDIRECT_DOMAINS = [
+/** Solo se acepta un link de pago de estos dominios (y sus subdominios), aunque el backend devuelva otra URL. */
+const ALLOWED_CHECKOUT_DOMAINS = [
   'mercadopago.com',
   'mercadopago.com.ar',
   'mercadopago.com.br',
@@ -22,9 +21,9 @@ const ALLOWED_REDIRECT_DOMAINS = [
   'mercadolibre.com.ar',
 ];
 
-function isAllowedRedirectHost(hostname: string): boolean {
+function isAllowedCheckoutHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
-  return ALLOWED_REDIRECT_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
+  return ALLOWED_CHECKOUT_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
 }
 
 /** Forma del Payments MS: el monto (decimal de PostgreSQL) puede llegar como string. */
@@ -57,7 +56,6 @@ function toPayment(raw: ApiPayment): Payment {
 })
 export class PaymentsService {
   private readonly api = inject(ApiService);
-  private readonly document = inject(DOCUMENT);
   private readonly storage = inject(CART_STORAGE);
 
   /**
@@ -81,8 +79,11 @@ export class PaymentsService {
     );
   }
 
-  /** Redirige al checkout de Mercado Pago. Lanza si la URL falta o no es un dominio permitido. */
-  redirectToCheckout(checkoutUrl: string | null): void {
+  /**
+   * Valida el link de pago devuelto por el backend antes de mostrarlo al cliente: tiene que ser
+   * https y de un dominio de Mercado Pago. Lanza si falta o no es válido.
+   */
+  validCheckoutUrl(checkoutUrl: string | null): string {
     if (!checkoutUrl) {
       throw new Error('El servidor no devolvió la URL de pago.');
     }
@@ -92,10 +93,10 @@ export class PaymentsService {
     } catch {
       throw new Error('La URL de pago recibida no es válida.');
     }
-    if (url.protocol !== 'https:' || !isAllowedRedirectHost(url.hostname)) {
+    if (url.protocol !== 'https:' || !isAllowedCheckoutHost(url.hostname)) {
       throw new Error('La URL de pago recibida no pertenece a Mercado Pago.');
     }
-    this.navigate(url.toString());
+    return url.toString();
   }
 
   /** Guarda la venta en curso para recuperarla si Mercado Pago no devuelve external_reference. */
@@ -121,10 +122,5 @@ export class PaymentsService {
     } catch {
       // Nada que limpiar.
     }
-  }
-
-  /** Aislado para poder sustituirlo en tests (navegar de verdad recarga la página). */
-  protected navigate(url: string): void {
-    this.document.location.assign(url);
   }
 }
