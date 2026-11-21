@@ -19,6 +19,8 @@ describe('SalesController (TCP patterns)', () => {
     get: jest.fn(),
     markPaid: jest.fn(),
     cancel: jest.fn(),
+    cancelByUser: jest.fn(),
+    dispatch: jest.fn(),
     receipt: jest.fn(),
   };
   const controller = new SalesController(service as unknown as SalesService);
@@ -30,6 +32,8 @@ describe('SalesController (TCP patterns)', () => {
     ['markPaid', ERP_PATTERNS.MARK_SALE_PAID],
     ['cancel', ERP_PATTERNS.CANCEL_SALE],
     ['receipt', ERP_PATTERNS.GET_SALE_RECEIPT],
+    ['cancelByUser', ERP_PATTERNS.CANCEL_SALE_BY_USER],
+    ['dispatch', ERP_PATTERNS.DISPATCH_SALE],
   ] as const)('%s answers %s', (handler, pattern) => {
     expect(patternOf(handler)).toEqual([pattern]);
   });
@@ -48,6 +52,15 @@ describe('SalesController (TCP patterns)', () => {
     (handler) => {
       void controller[handler]({ id: 'sale-1' });
       expect(service[handler]).toHaveBeenCalledWith('sale-1');
+    },
+  );
+
+  it.each(['cancelByUser', 'dispatch'] as const)(
+    '%s forwards the sale id and the acting user',
+    (handler) => {
+      const message = { id: 'sale-1', userId: 'user-1' };
+      void controller[handler](message);
+      expect(service[handler]).toHaveBeenCalledWith(message);
     },
   );
 });
