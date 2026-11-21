@@ -50,6 +50,26 @@
   }
 }
 
+/* Ancho fijo mínimo: el botón no "salta" al pasar de "Generar pago" a "Procesando...". */
+.checkout__submit {
+  min-width: 10.5rem;
+}
+
+/* Spinner y texto en una sola línea, centrados (dentro del label del botón no se alinean solos). */
+.checkout__submit-busy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  white-space: nowrap;
+
+  mat-progress-spinner {
+    flex: none;
+    /* En un botón deshabilitado `currentColor` queda casi invisible: se usa el acento. */
+    --mat-progress-spinner-active-indicator-color: var(--app-accent);
+  }
+}
+
 .checkout__summary {
   padding: 1rem;
   background: var(--mat-sys-surface-container-low);

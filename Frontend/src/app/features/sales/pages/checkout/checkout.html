@@ -27,10 +27,13 @@
 
       <div class="checkout__actions">
         <a mat-button routerLink="/sales">Volver al carrito</a>
-        <button mat-flat-button type="submit" [disabled]="!canSubmit()">
+        <button mat-flat-button type="submit" class="checkout__submit" [disabled]="!canSubmit()">
           @if (submitting()) {
-          <mat-progress-spinner mode="indeterminate" diameter="20" />
-          Procesando... } @else { Generar pago }
+          <span class="checkout__submit-busy">
+            <mat-progress-spinner mode="indeterminate" diameter="18" />
+            Procesando...
+          </span>
+          } @else { Generar pago }
         </button>
       </div>
     </form>

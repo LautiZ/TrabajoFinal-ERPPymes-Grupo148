@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 import type { Mock } from 'vitest';
 import { NotificationService } from '../../../../shared/services/notification.service';
 import { Payment } from '../../models/payment.model';
@@ -95,6 +95,18 @@ describe('Checkout', () => {
 
   it('el botón de cobro dice "Generar pago"', () => {
     expect(button().textContent?.trim()).toBe('Generar pago');
+  });
+
+  it('mientras procesa, el spinner y el texto van juntos en un bloque centrado', () => {
+    payments.createPayment.mockReturnValue(new Subject());
+
+    submitForm();
+    fixture.detectChanges();
+
+    const busy = button().querySelector('.checkout__submit-busy');
+    expect(busy?.querySelector('mat-progress-spinner')).not.toBeNull();
+    expect(busy?.textContent).toContain('Procesando...');
+    expect(button().disabled).toBe(true);
   });
 
   it('con el carrito vacío no permite confirmar ni llama al backend', () => {
