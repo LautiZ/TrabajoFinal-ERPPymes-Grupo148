@@ -1,3 +1,4 @@
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -7,7 +8,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -58,6 +59,8 @@ import { createSpanishPaginatorIntl } from '../../utils/paginator-intl';
 import { StockStatus, getStockStatus } from '../../utils/stock-status';
 
 const SEARCH_DEBOUNCE_MS = 300;
+/** Mismo corte que los estilos de phones: ahi el paginador se compacta. */
+const PHONE_QUERY = '(max-width: 600px)';
 
 @Component({
   imports: [
@@ -92,6 +95,14 @@ export class InventoryList {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reload$ = new Subject<void>();
+
+  /** En phones se oculta el selector de tamano de pagina para que el paginador entre en una linea. */
+  protected readonly isPhone = toSignal(
+    inject(BreakpointObserver)
+      .observe(PHONE_QUERY)
+      .pipe(map((state) => state.matches)),
+    { initialValue: false },
+  );
 
   protected readonly displayedColumns = [
     'product',

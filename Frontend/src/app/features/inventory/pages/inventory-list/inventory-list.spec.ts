@@ -1,3 +1,4 @@
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import {
   ActivatedRoute,
@@ -26,6 +27,7 @@ describe('InventoryList', () => {
   let inventory: { list: Mock; listCategories: Mock };
   let summary: { load: Mock };
   let fixture: ComponentFixture<InventoryList>;
+  let phone$: BehaviorSubject<BreakpointState>;
 
   const text = (): string => (fixture.nativeElement as HTMLElement).textContent ?? '';
   const instance = (): Record<string, (...args: unknown[]) => void> =>
@@ -53,6 +55,7 @@ describe('InventoryList', () => {
       providers: [
         { provide: InventoryService, useValue: inventory },
         { provide: StockSummaryService, useValue: summary },
+        { provide: BreakpointObserver, useValue: { observe: () => phone$.asObservable() } },
         provideRouter([]),
         {
           provide: ActivatedRoute,
@@ -69,6 +72,7 @@ describe('InventoryList', () => {
   }
 
   beforeEach(() => {
+    phone$ = new BehaviorSubject<BreakpointState>({ matches: false, breakpoints: {} });
     summary = { load: vi.fn(() => of({ total: 20, ok: 14, low: 4, out: 2 })) };
     inventory = {
       list: vi.fn(() =>
@@ -383,5 +387,24 @@ describe('InventoryList', () => {
     await create();
 
     expect(text()).toContain('Por página');
+  });
+
+  it('en pantallas chicas oculta el selector de tamaño de página', async () => {
+    await create();
+    expect(text()).toContain('Por página');
+
+    phone$.next({ matches: true, breakpoints: {} });
+    fixture.detectChanges();
+
+    expect(text()).not.toContain('Por página');
+  });
+
+  it('la tabla es una región desplazable alcanzable con el teclado', async () => {
+    await create();
+
+    const region = (fixture.nativeElement as HTMLElement).querySelector('.table-scroll');
+    expect(region?.getAttribute('role')).toBe('region');
+    expect(region?.getAttribute('tabindex')).toBe('0');
+    expect(region?.getAttribute('aria-label')).toBe('Tabla de productos');
   });
 });

@@ -40,7 +40,7 @@
     description="Van a aparecer acá cuando se registren movimientos de inventario."
   />
   } @else {
-  <div class="movements">
+  <div class="movements" role="region" aria-labelledby="movements-title" tabindex="0">
     <table mat-table [dataSource]="movements()">
       <ng-container matColumnDef="direction">
         <th mat-header-cell *matHeaderCellDef>Tipo</th>
