@@ -48,6 +48,16 @@
     align-items: center;
     gap: 0.5rem;
   }
+
+  @media (max-width: 560px) {
+    flex-direction: column-reverse;
+
+    button {
+      justify-content: center;
+      width: 100%;
+      min-height: 2.75rem;
+    }
+  }
 }
 
 /* Ancho fijo mínimo: el botón no "salta" al pasar de "Generar pago" a "Procesando...". */
@@ -141,6 +151,7 @@
     display: flex;
     justify-content: space-between;
     gap: 1rem;
+    overflow-wrap: anywhere;
   }
 }
 

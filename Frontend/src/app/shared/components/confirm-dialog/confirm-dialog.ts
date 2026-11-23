@@ -42,6 +42,11 @@ export interface ConfirmDialogData {
       border-radius: inherit;
     }
 
+    /* Evita que mensajes largos sin espacios desborden el dialogo en phones. */
+    mat-dialog-content p {
+      overflow-wrap: anywhere;
+    }
+
     .confirm-dialog__confirm--danger {
       --mat-sys-primary: var(--app-danger);
       --mat-sys-on-primary: var(--app-bg);

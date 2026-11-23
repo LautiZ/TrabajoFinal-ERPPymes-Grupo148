@@ -16,7 +16,13 @@
   } @else if (sales().length === 0) {
     <p class="sales__state">Todavía no hay ventas registradas.</p>
   } @else {
-    <div class="sales__scroll" [class.sales__scroll--loading]="loading()">
+    <div
+      class="sales__scroll"
+      [class.sales__scroll--loading]="loading()"
+      role="region"
+      aria-label="Tabla de ventas"
+      tabindex="0"
+    >
       <table mat-table [dataSource]="sales()">
         <ng-container matColumnDef="number">
           <th mat-header-cell *matHeaderCellDef>N°</th>

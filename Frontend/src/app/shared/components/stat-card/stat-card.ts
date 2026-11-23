@@ -60,6 +60,13 @@ import { MatIconModule } from '@angular/material/icon';
       font-weight: 700;
       letter-spacing: -0.02em;
     }
+    @media (max-width: 600px) {
+      .stat__value {
+        font: var(--mat-sys-headline-medium);
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
+    }
     .stat__hint {
       margin: 0;
       color: var(--app-text-muted);

@@ -5,6 +5,8 @@
 
 .sales__header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.5rem;
@@ -35,6 +37,7 @@
 
 table {
   width: 100%;
+  min-width: 40rem;
 }
 
 .clip {

@@ -47,8 +47,28 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     }
     .page-header__actions {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 0.75rem;
+    }
+    @media (max-width: 600px) {
+      :host {
+        margin-bottom: 1rem;
+      }
+      h1 {
+        font: var(--mat-sys-headline-small);
+        font-weight: 700;
+      }
+      .page-header {
+        align-items: stretch;
+      }
+      .page-header__actions {
+        width: 100%;
+      }
+      .page-header__actions > * {
+        flex: 1 1 auto;
+        min-height: 2.75rem;
+      }
     }
     .page-header__actions:empty {
       display: none;

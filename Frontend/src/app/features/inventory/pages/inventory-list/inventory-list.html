@@ -122,6 +122,9 @@
     <div
       class="table-scroll"
       [class.table-scroll--loading]="loading()"
+      role="region"
+      aria-label="Tabla de productos"
+      tabindex="0"
     >
       <table
         mat-table
@@ -279,6 +282,7 @@
       [pageSize]="state().limit"
       [pageIndex]="state().page - 1"
       [pageSizeOptions]="pageSizeOptions"
+      [hidePageSize]="isPhone()"
       showFirstLastButtons
       (page)="onPage($event)"
     />
