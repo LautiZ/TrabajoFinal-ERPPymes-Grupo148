@@ -30,4 +30,14 @@
     align-items: center;
     gap: 0.5rem;
   }
+
+  @media (max-width: 600px) {
+    flex-direction: column-reverse;
+
+    button {
+      justify-content: center;
+      width: 100%;
+      min-height: 2.75rem;
+    }
+  }
 }

@@ -107,9 +107,14 @@
 
       <div class="topbar__actions">
         @if (canCreateUsers()) {
-        <a mat-stroked-button class="topbar__create-user" routerLink="/users/new">
+        <a
+          mat-stroked-button
+          class="topbar__create-user"
+          routerLink="/users/new"
+          aria-label="Crear usuario"
+        >
           <mat-icon fontSet="material-symbols-outlined">person_add</mat-icon>
-          Crear usuario
+          <span class="topbar__create-user-label">Crear usuario</span>
         </a>
         }
       </div>

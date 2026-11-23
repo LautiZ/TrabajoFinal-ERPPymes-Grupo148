@@ -91,6 +91,7 @@
 
   input {
     width: 4rem;
+    min-height: 2.5rem;
     padding: 0.35rem;
     text-align: center;
     font: inherit;
@@ -131,4 +132,8 @@
 
 .cart__pay {
   height: 3rem;
+}
+
+.line__name {
+  overflow-wrap: anywhere;
 }

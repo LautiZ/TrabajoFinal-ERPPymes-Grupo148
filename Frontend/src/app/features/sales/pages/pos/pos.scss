@@ -34,6 +34,11 @@
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: 0.75rem;
   margin-top: 1rem;
+
+  // En phones, dos productos por fila.
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .product {
@@ -51,6 +56,8 @@
   background: var(--mat-sys-surface-container-low);
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 0.75rem;
+  min-height: 2.75rem;
+  overflow-wrap: anywhere;
 
   &:hover:not(:disabled) {
     background: var(--mat-sys-surface-container-high);

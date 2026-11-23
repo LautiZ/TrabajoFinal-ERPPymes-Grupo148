@@ -62,8 +62,12 @@ export interface SaleDetailDialogData {
       margin: 1rem 0 0.5rem;
       font: var(--mat-sys-title-small);
     }
+    .table-scroll {
+      overflow-x: auto;
+    }
     table {
       width: 100%;
+      min-width: 30rem;
       border-collapse: collapse;
     }
     th,
@@ -137,6 +141,7 @@ export interface SaleDetailDialogData {
       </dl>
 
       <h3>Productos</h3>
+      <div class="table-scroll" role="region" aria-label="Productos de la venta" tabindex="0">
       <table>
         <thead>
           <tr>
@@ -159,6 +164,7 @@ export interface SaleDetailDialogData {
           }
         </tbody>
       </table>
+      </div>
 
       <h3>Link de pago</h3>
       @switch (paymentLink().kind) {

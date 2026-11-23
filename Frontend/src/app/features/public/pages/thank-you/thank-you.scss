@@ -3,7 +3,12 @@
   display: grid;
   place-items: center;
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 1.5rem;
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+  }
   overflow: hidden;
   background:
     radial-gradient(60rem 30rem at 50% -10%, var(--app-accent-soft), transparent), var(--app-bg);
@@ -19,6 +24,10 @@
   width: min(100%, 30rem);
   padding: 2.5rem 1.75rem;
   text-align: center;
+
+  @media (max-width: 480px) {
+    padding: 2rem 1.25rem;
+  }
 
   h1 {
     margin: 0.25rem 0 0;

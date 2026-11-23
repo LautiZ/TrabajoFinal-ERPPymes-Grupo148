@@ -12,6 +12,10 @@
   background: var(--mat-sys-surface-container-low);
   height: 100%;
 
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
+
   &__header {
     display: flex;
     flex-wrap: wrap;
@@ -55,6 +59,7 @@
 }
 
 .control-btn {
+  min-height: 2.5rem;
   padding: 0.35rem 0.65rem;
   border: none;
   background: transparent;

@@ -174,3 +174,16 @@ a {
   --mat-snack-bar-container-color: #43340f;
   --mat-snack-bar-supporting-text-color: #fdeeca;
 }
+
+// ---------- Responsive global ----------
+// Material limita el panel de dialogos con `max-width: 80vw` inline: en phones se
+// amplia para aprovechar el ancho, siempre dejando un margen de 1rem por lado.
+@media (max-width: 600px) {
+  .cdk-overlay-pane.mat-mdc-dialog-panel {
+    max-width: calc(100vw - 2rem) !important;
+  }
+
+  .mat-mdc-dialog-container {
+    --mat-dialog-container-min-width: 0;
+  }
+}

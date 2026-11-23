@@ -100,7 +100,7 @@ export interface AdjustStockDialogData {
     .content {
       display: flex;
       flex-direction: column;
-      min-width: min(26rem, 80vw);
+      min-width: min(26rem, calc(100vw - 6rem));
     }
     .summary {
       display: flex;
