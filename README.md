@@ -36,7 +36,7 @@ Corre en una VM de Azure for Students con el mismo `docker compose` del reposito
 - [Arquitectura y tecnologías](#arquitectura-y-tecnologías)
 - [Estructura del repositorio](#estructura-del-repositorio)
 - [Levantar el entorno](#levantar-el-entorno)
-
+- [Credenciales de prueba](#credenciales-de-prueba-test-user)
 ---
 
 ## Documentación
@@ -108,3 +108,9 @@ El API Gateway queda disponible en `http://localhost:3000`. Auth, ERP y Payments
 Las migraciones se aplican solas. El servicio `migrate` es un job de una sola ejecución: espera a que PostgreSQL esté sano, ejecuta `prisma migrate deploy` para los schemas `auth`, `erp` y `payments`, y termina. Auth, ERP y Payments arrancan recién cuando ese job terminó con éxito (`service_completed_successfully`); si una migración falla, los servicios no se levantan. En las ejecuciones siguientes no hay migraciones pendientes y el job termina enseguida. Que `docker compose ps -a` muestre `migrate` como `Exited (0)` es lo esperado.
 
 Para tener un usuario `Owner` y datos de ejemplo, correr el seed después de levantar el entorno (ver [Seed inicial](Backend/README.md#seed-inicial)).
+## Credenciales de prueba (Test User)
+
+Para probar los pagos mediante Mercado Pago,no hay que usar cuentas personales sino que hay que iniciar sesion con el siguiente usuario de prueba:
+
+* **Usuario:** `TESTUSER4477244541328798851`
+* **Contraseña:** `FRCjTh1DP9`
